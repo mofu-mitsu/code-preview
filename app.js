@@ -1,9 +1,9 @@
 const defaults = {
   html: '<!doctype html>\n<html>\n<head><style>body{font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0;background:#fff7fb}h1{color:#7b4bc4}</style></head>\n<body><h1>Hello, Code Preview!</h1></body>\n</html>',
-  css: 'body { font-family: system-ui; display: grid; place-items: center; height: 100vh; margin: 0; }\\n.card { padding: 24px; border-radius: 16px; background: #f4eaff; }',
-  javascript: 'const root = document.body;\\nroot.innerHTML = \'<div class="card">Hello from JavaScript!</div>\';\\nroot.style.cssText = "font-family:system-ui;display:grid;place-items:center;height:100vh";',
-  jsx: 'function App() {\\n  return <main style={{fontFamily:"system-ui", padding:40}}>\\n    <h1>Hello JSX 👋</h1>\\n    <p>React is running in your browser.</p>\\n  </main>;\\n}\\n\\nconst root = ReactDOM.createRoot(document.getElementById("root"));\\nroot.render(<App />);',
-  tsx: 'type Props = { name: string };\\n\\nfunction App({ name }: Props) {\\n  return <main style={{fontFamily:"system-ui", padding:40}}>\\n    <h1>Hello, {name}!</h1>\\n    <p>This is TSX previewed without a build server.</p>\\n  </main>;\\n}\\n\\nReactDOM.createRoot(document.getElementById("root")).render(<App name="Mitsuki" />);'
+  css: 'body { font-family: system-ui; display: grid; place-items: center; height: 100vh; margin: 0; }\n.card { padding: 24px; border-radius: 16px; background: #f4eaff; }',
+  javascript: 'const root = document.body;\nroot.innerHTML = \'<div class="card">Hello from JavaScript!</div>\';\nroot.style.cssText = "font-family:system-ui;display:grid;place-items:center;height:100vh";',
+  jsx: 'function App() {\n  return <main style={{fontFamily:"system-ui", padding:40}}>\n    <h1>Hello JSX 👋</h1>\n    <p>React is running in your browser.</p>\n  </main>;\n}\n\nconst root = ReactDOM.createRoot(document.getElementById("root"));\nroot.render(<App />);',
+  tsx: 'type Props = { name: string };\n\nfunction App({ name }: Props) {\n  return <main style={{fontFamily:"system-ui", padding:40}}>\n    <h1>Hello, {name}!</h1>\n    <p>This is TSX previewed without a build server.</p>\n  </main>;\n}\n\nReactDOM.createRoot(document.getElementById("root")).render(<App name="Mitsuki" />);'
 };
 
 let editor;
