@@ -1,34 +1,37 @@
 # Code Preview
 
-A browser-based playground for quickly previewing code without setting up a local server.
+ブラウザ上でコードを編集・実行し、GitHub リポジトリや ZIP、ローカルフォルダを読み込んでプレビューするための実験的な開発ツールです。
 
-## Supported
+## できること
 
-- HTML
-- CSS
-- JavaScript
-- JSX / React
-- TSX / React
+- Monaco Editor によるコード編集・直接貼り付け
+- 公開 GitHub リポジトリ URL からのファイル読み込み
+- ZIP アーカイブの読み込み
+- ローカルフォルダの読み込み（ブラウザが対応する環境）
+- 複数ファイルの一覧表示・切り替え・新規作成
+- HTML / CSS / JavaScript の静的プレビュー
+- Babel による単一ファイル JSX / TSX の変換プレビュー
+- サンドボックス iframe でのプレビュー
 
-## Architecture
+## 現在の制約
 
-```
-Monaco Editor
-     ↓
-Browser transform (Babel)
-     ↓
-Sandboxed iframe
-     ↓
-Preview
-```
+- GitHub インポートは公開リポジトリ向けです。GitHub API のレート制限の影響を受けます。
+- 大きなファイルや依存関係フォルダは読み込み対象から除外されます。
+- Vite / Next.js / npm パッケージを使うプロジェクトは、ファイルを読み込めても、ビルド工程や依存関係が必要なため、そのまま動作するとは限りません。
+- PHP / Python / Ruby / Go / Rust は現在、ソースファイルを表示・編集できる段階であり、サーバー実行環境は未実装です。
+- 読み込んだコードの変更はこのブラウザ内の作業状態です。GitHubへの書き戻しやプロジェクトの保存機能はまだありません。
 
-TSX is transpiled in the browser with Babel's TypeScript + React presets. This MVP is intentionally a single-file playground; imports and multi-file projects can be added later.
+## 構成
 
-## Roadmap
+- Monaco Editor: エディタ
+- Babel Standalone: JSX / TSX のブラウザ内変換
+- JSZip: ZIP の展開
+- Sandboxed iframe: プレビューの隔離
 
-- Console output forwarding
-- Multi-file project mode
-- npm package imports
-- Vue / Svelte
-- PHP / Python / Ruby server-runtime previews
-- Shareable snippets
+## 次の候補
+
+1. ファイルツリーのフォルダ階層表示と削除・名前変更
+2. 相対パスや CSS の画像・フォント参照の互換性改善
+3. Vite / React / Vue などのビルド環境
+4. PHP / Python / Go / Rust の隔離された実行環境
+5. プロジェクト保存・共有・GitHub への書き戻し
