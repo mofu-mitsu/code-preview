@@ -1,5 +1,5 @@
 const defaults = {
-  html: '<!doctype html>\n<html lang="ja">\n<head><meta charset="utf-8"><style>body{font-family:system-ui;display:grid;place-items:center;min-height:100vh;margin:0;background:#fff7fb}h1{color:#7b4bc4}</style></head>\n<body><main><h1>Hello, Code Preview!</h1><p>左のファイル一覧からファイルを切り替えられます。</p></main></body>\n</html>',
+  html: '<!doctype html>\n<html lang="ja">\n<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="style.css"></head>\n<body><main><h1>Hello, Code Preview!</h1><p>左のファイル一覧からファイルを切り替えられます。</p></main><script src="app.js"></script></body>\n</html>',
   css: 'body { font-family: system-ui; display: grid; place-items: center; height: 100vh; margin: 0; }\n.card { padding: 24px; border-radius: 16px; background: #f4eaff; }',
   javascript: 'document.body.innerHTML = \'<div class="card">Hello from JavaScript!</div>\';\ndocument.body.style.cssText = "font-family:system-ui;display:grid;place-items:center;height:100vh";',
   jsx: 'function App() {\n  return <main style={{fontFamily:"system-ui", padding:40}}>\n    <h1>Hello JSX 👋</h1><p>React is running in your browser.</p>\n  </main>;\n}\nReactDOM.createRoot(document.getElementById("root")).render(<App />);',
