@@ -4,59 +4,37 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Code Preview</title>
+  <meta name="description" content="GitHub・ZIP・フォルダからコードを読み込み、ブラウザ上でプレビューできる開発ツール" />
   <link rel="stylesheet" href="style.css" />
-  <meta name="description" content="Code Preview - ブラウザ上でコードを実行・プレビューする開発ツール" />
 </head>
-<body>\n  <nav class="breadcrumb" aria-label="パンくずリスト">
-    <a href="https://mofu-mitsu.github.io/">ホーム</a>
-    <span aria-hidden="true">›</span>
-    <span aria-current="page">Code Preview</span>
-  </nav>
-
+<body>
+  <nav class="breadcrumb" aria-label="パンくずリスト"><a href="https://mofu-mitsu.github.io/">ホーム</a><span aria-hidden="true">›</span><span aria-current="page">Code Preview</span></nav>
   <header class="topbar">
-    <div>
-      <div class="brand">Code Preview</div>
-      <div class="subtitle">Write code. See what it produces.</div>
-    </div>
+    <div class="brand-wrap"><div class="brand">Code Preview <span class="beta">BETA</span></div><div class="subtitle">Bring your code. See it come alive.</div></div>
     <div class="controls">
-      <select id="language" aria-label="Language">
-        <option value="html">HTML</option>
-        <option value="css">CSS</option>
-        <option value="javascript">JavaScript</option>
-        <option value="jsx">JSX / React</option>
-        <option value="tsx">TSX / React</option>
-      </select>
-      <button id="run" class="primary">▶ Run</button>
-      <button id="reset">Reset</button>
+      <select id="language" aria-label="Language"><option value="html">HTML</option><option value="css">CSS</option><option value="javascript">JavaScript</option><option value="jsx">JSX / React</option><option value="tsx">TSX / React</option></select>
+      <button id="run" class="primary">▶ 実行</button><button id="reset">リセット</button>
     </div>
   </header>
-
-  <main class="workspace">
-    <section class="panel editor-panel">
-      <div class="panel-head"><span>CODE</span><span id="status">Ready</span></div>
-      <div id="editor"></div>
-    </section>
-    <section class="panel preview-panel">
-      <div class="panel-head">
-        <span>PREVIEW</span>
-        <button id="open-new" class="mini">↗ New tab</button>
-      </div>
-      <iframe id="preview" sandbox="allow-scripts" title="Code preview"></iframe>
-    </section>
-  </main>
-
-  <section class="console-panel">
-    <div class="panel-head"><span>CONSOLE</span><button id="clear-console" class="mini">Clear</button></div>
-    <pre id="console"></pre>
+  <section class="importbar">
+    <form id="github-form" class="github-form"><span class="github-mark">GH</span><input id="github-url" type="url" placeholder="GitHub リポジトリ URL（公開リポジトリ）" aria-label="GitHub repository URL" /><button class="primary" type="submit" id="import-github">取り込む</button></form>
+    <label class="file-button">ZIPを読み込む<input id="zip-input" type="file" accept=".zip,application/zip" /></label>
+    <label class="file-button">フォルダを読み込む<input id="folder-input" type="file" webkitdirectory multiple /></label>
+    <button id="paste-open" type="button">コードを貼り付け</button>
+    <span id="project-status" role="status">サンプルプロジェクト</span>
   </section>
-
-  <footer>
-    <span>Code Preview</span>
-    <span>Browser runtime · sandboxed preview</span>
-  </footer>
-
+  <main class="workspace">
+    <aside class="files-panel panel"><div class="panel-head"><span>PROJECT FILES</span><button id="new-file" class="mini">＋ ファイル</button></div><div id="file-list" class="file-list"></div></aside>
+    <section class="panel editor-panel"><div class="panel-head"><span id="active-file-label">CODE</span><span id="status">Ready</span></div><div id="editor"></div></section>
+    <section class="panel preview-panel"><div class="panel-head"><span>PREVIEW</span><div class="head-actions"><button id="open-new" class="mini">↗ 別タブ</button><button id="refresh" class="mini">更新</button></div></div><iframe id="preview" sandbox="allow-scripts allow-forms" title="Code preview"></iframe></section>
+  </main>
+  <section class="console-panel"><div class="panel-head"><span>CONSOLE</span><button id="clear-console" class="mini">Clear</button></div><pre id="console"></pre></section>
+  <footer><span>Code Preview · by mofu-mitsu</span><span>Browser sandbox · GitHub / ZIP / Folder import</span></footer>
+  <dialog id="paste-dialog"><form method="dialog" class="dialog-card"><div class="dialog-title">コードを貼り付け</div><p>エディタへ直接貼り付けてもOK。ここではコードをまとめて読み込めます。</p><input id="paste-filename" value="index.html" aria-label="File name" /><textarea id="paste-code" spellcheck="false" placeholder="ここにコードを貼り付け…"></textarea><div class="dialog-actions"><button value="cancel">キャンセル</button><button id="paste-load" value="default" class="primary">エディタに読み込む</button></div></form></dialog>
+  <dialog id="newfile-dialog"><form method="dialog" class="dialog-card"><div class="dialog-title">ファイルを追加</div><input id="newfile-name" placeholder="例: src/app.js" /><div class="dialog-actions"><button value="cancel">キャンセル</button><button id="newfile-create" value="default" class="primary">作成</button></div></form></dialog>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.26.10/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
