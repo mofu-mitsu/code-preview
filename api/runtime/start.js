@@ -59,14 +59,21 @@ export default async function handler(req, res) {
     const script = `#!/usr/bin/env bash
 set +e
 cd /vercel/sandbox
-printf '%s' '{"state":"installing","message":"依存関係をインストールしています"}' > .code-preview-status.json
-npm install --no-audit --no-fund > .code-preview-build.log 2>&1
+STARTED_AT=$(date +%s)
+printf '{"state":"installing","stage":"install","startedAt":%s,"message":"依存関係をインストールしています"}' "$STARTED_AT" > .code-preview-status.json
+if [ -f package-lock.json ]; then
+  echo "[Code Preview] package-lock.json を検出: npm ci で再現可能な依存関係を準備します" > .code-preview-build.log
+  npm ci --no-audit --no-fund --progress=false --loglevel=info >> .code-preview-build.log 2>&1
+else
+  echo "[Code Preview] lockfile がないため npm install を実行します" > .code-preview-build.log
+  npm install --no-audit --no-fund --progress=false --loglevel=info >> .code-preview-build.log 2>&1
+fi
 INSTALL_CODE=$?
 if [ "$INSTALL_CODE" -ne 0 ]; then
-  printf '%s' '{"state":"error","message":"npm install に失敗しました"}' > .code-preview-status.json
+  printf '{"state":"error","stage":"install","startedAt":%s,"message":"依存関係のインストールに失敗しました。ログの末尾を確認してください"}' "$STARTED_AT" > .code-preview-status.json
   exit "$INSTALL_CODE"
 fi
-printf '%s' '{"state":"starting","message":"開発サーバーを起動しています"}' > .code-preview-status.json
+printf '{"state":"starting","stage":"server","startedAt":%s,"message":"依存関係の準備が完了。開発サーバーを起動しています"}' "$STARTED_AT" > .code-preview-status.json
 if [ "${nextProject ? "next" : "other"}" = "next" ]; then
   npm run dev -- --hostname 0.0.0.0 --port 3000 >> .code-preview-server.log 2>&1 &
 else
@@ -75,16 +82,16 @@ fi
 SERVER_PID=$!
 for i in $(seq 1 120); do
   if curl -fsS http://127.0.0.1:3000 >/dev/null 2>&1; then
-    printf '%s' '{"state":"ready","message":"プレビューを起動しました"}' > .code-preview-status.json
+    printf '{"state":"ready","stage":"ready","startedAt":%s,"message":"プレビューを起動しました"}' "$STARTED_AT" > .code-preview-status.json
     exit 0
   fi
   if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-    printf '%s' '{"state":"error","message":"開発サーバーが終了しました"}' > .code-preview-status.json
+    printf '{"state":"error","stage":"server","startedAt":%s,"message":"開発サーバーが終了しました"}' "$STARTED_AT" > .code-preview-status.json
     exit 1
   fi
   sleep 1
 done
-printf '%s' '{"state":"error","message":"起動がタイムアウトしました"}' > .code-preview-status.json
+printf '{"state":"error","stage":"server","startedAt":%s,"message":"起動がタイムアウトしました"}' "$STARTED_AT" > .code-preview-status.json
 exit 1
 `;
     await sandbox.writeFiles([{ path: ".code-preview-start.sh", content: Buffer.from(script), mode: 0o755 }]);
