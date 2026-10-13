@@ -344,6 +344,15 @@ function instrumentPreview(html) {
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 }
+async function readApiResponse(response) {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch (_) {
+    const detail = text.trim().slice(0, 600) || "(空のレスポンス)";
+    throw new Error("APIがJSON以外を返しました (HTTP " + response.status + "): " + detail);
+  }
+}
 let remoteRuntimeId = null;
 let remotePollToken = 0;
 async function stopRemoteRuntime() {
@@ -371,14 +380,14 @@ async function runRemoteCode(lang) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ language: lang, activePath, files: projectFiles })
     });
-    const started = await response.json();
+    const started = await readApiResponse(response);
     if (token !== remotePollToken) return;
     if (!response.ok || started.error) throw new Error(started.error || "リモート実行を開始できませんでした");
     for (let attempt = 0; attempt < 140; attempt++) {
       await new Promise(resolve => setTimeout(resolve, 1500));
       if (token !== remotePollToken) return;
       const poll = await fetch("/api/runtime/status?id=" + encodeURIComponent(started.id), { cache: "no-store" });
-      const state = await poll.json();
+      const state = await readApiResponse(poll);
       if (state.state === "error") throw new Error(state.message || "実行環境に接続できません");
       if (state.result) {
         const result = state.result;
@@ -419,7 +428,7 @@ async function runRemoteProject() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ files: projectFiles })
     });
-    const result = await response.json();
+    const result = await readApiResponse(response);
     if (token !== remotePollToken) return;
     if (!response.ok || result.error) throw new Error(result.error || "リモートプレビューを開始できませんでした");
     remoteRuntimeId = result.id;
@@ -429,7 +438,7 @@ async function runRemoteProject() {
       await new Promise(resolve => setTimeout(resolve, 2000));
       if (token !== remotePollToken) return;
       const statusResponse = await fetch("/api/runtime/status?id=" + encodeURIComponent(result.id), { cache: "no-store" });
-      const state = await statusResponse.json();
+      const state = await readApiResponse(statusResponse);
       if (state.logs) {
         const logs = state.logs.split("\n").filter(Boolean);
         const latest = logs.slice(-5).join("\n");
