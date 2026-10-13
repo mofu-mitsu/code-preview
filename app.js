@@ -447,7 +447,7 @@ async function runRemoteProject() {
     const response = await fetch("/api/runtime/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ files: projectFiles })
+      body: JSON.stringify({ files: getRuntimeFiles(activePath) })
     });
     const result = await readApiResponse(response);
     if (token !== remotePollToken) return;
