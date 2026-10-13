@@ -15,7 +15,7 @@ const defaults = {
 };
 const TEXT_EXT = /\.(html?|css|[cm]?js|jsx|tsx?|json|md|txt|svg|xml|ya?ml|toml|php|py|go|rs|rb|sh|sql|vue|svelte|c|h|hpp|cc|cpp|cxx|cs|java|kt|swift|dart|lua|r|pl|ex|exs|scala|clj)$/i;
 const MIME = {png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",webp:"image/webp",svg:"image/svg+xml",ico:"image/x-icon",woff:"font/woff",woff2:"font/woff2",ttf:"font/ttf",mp3:"audio/mpeg",mp4:"video/mp4"};
-let editor, activePath = "index.html", projectFiles = {}, currentPreview = "", sourceKind = "sample", githubMeta = null, lastGithubUrl = "", consoleFontSize = 11;
+let editor, activePath = "index.html", projectFiles = {}, currentPreview = "", sourceKind = "sample", githubMeta = null, lastGithubUrl = "", consoleFontSize = 11;\nconst consoleCounts = {error:0, warn:0, info:0, log:0};
 const language = document.getElementById("language");
 const status = document.getElementById("status");
 const consoleEl = document.getElementById("console");
@@ -132,7 +132,7 @@ document.getElementById("reset").addEventListener("click", () => {
   activeLabel.textContent = "ファイルなし";
   fileList.innerHTML = '<div class="empty-files">ファイルはありません。<br>GitHub・ZIP・フォルダから読み込むか、＋ファイルで追加してください。</div>';
   frame.srcdoc = '<!doctype html><html lang="ja"><body style="font:14px system-ui;color:#9a8da2;display:grid;place-items:center;height:100vh;margin:0"><p>プレビューするファイルがありません</p></body></html>';
-  setStatus("全ファイルを削除しました"); status.textContent = "Empty"; consoleEl.textContent = ""; toast("エディタ内のファイルをすべて削除しました", "success");
+  setStatus("全ファイルを削除しました"); status.textContent = "Empty"; clearConsole(); toast("エディタ内のファイルをすべて削除しました", "success");
 });
 const consolePanel = document.getElementById("console-panel");
 document.getElementById("console-toggle").addEventListener("click", () => {
@@ -142,9 +142,9 @@ document.getElementById("console-toggle").addEventListener("click", () => {
   document.getElementById("console-toggle").classList.toggle("active", willOpen);
 });
 const aboutDialog = document.getElementById("about-dialog");
-document.getElementById("about-open").addEventListener("click", () => aboutDialog.showModal());
+document.getElementById("about-open").addEventListener("click", () => aboutDialog.showModal());\naboutDialog.addEventListener("click", event => { if (event.target === aboutDialog) aboutDialog.close(); });
 document.getElementById("about-close").addEventListener("click", () => aboutDialog.close());
-document.getElementById("clear-console").addEventListener("click", () => consoleEl.textContent = "");
+document.getElementById("clear-console").addEventListener("click", clearConsole);\ndocument.getElementById("console-details").addEventListener("click", () => { consolePanel.hidden = false; document.getElementById("console-toggle").setAttribute("aria-expanded", "true"); document.getElementById("console-toggle").classList.add("active"); consoleEl.scrollTop = consoleEl.scrollHeight; });
 document.getElementById("console-smaller").addEventListener("click", () => { consoleFontSize = Math.max(8, consoleFontSize - 1); consoleEl.style.fontSize = consoleFontSize + "px"; });
 document.getElementById("console-larger").addEventListener("click", () => { consoleFontSize = Math.min(20, consoleFontSize + 1); consoleEl.style.fontSize = consoleFontSize + "px"; });
 document.getElementById("console-height-smaller").addEventListener("click", () => { const panel = document.getElementById("console-panel"); panel.style.height = Math.max(65, panel.getBoundingClientRect().height - 30) + "px"; });
@@ -161,7 +161,7 @@ document.getElementById("github-form").addEventListener("submit", async event =>
   if (!match) { log("公開GitHubリポジトリのURLを入力してください。", "error"); return; }
   const owner = match[1], repo = match[2].replace(/\.git$/,""), branchFromUrl = match[3], subdir = match[4] || "";
   const button = document.getElementById("import-github"); button.disabled = true; button.textContent = "読み込み中…";
-  setStatus("GitHubを読み込み中…"); consoleEl.textContent = "";
+  setStatus("GitHubを読み込み中…"); clearConsole();
   try {
     const meta = await fetch("https://api.github.com/repos/" + owner + "/" + repo);
     if (!meta.ok) throw new Error(meta.status === 404 ? "リポジトリが見つからないか、非公開です。" : "GitHub API error: " + meta.status);
@@ -198,7 +198,7 @@ function blobToDataUrl(blob) {
 document.getElementById("zip-input").addEventListener("change", async event => {
   const file = event.target.files[0]; if (!file) return;
   githubMeta = null; sourceKind = "project";
-  setStatus("ZIPを展開中…"); consoleEl.textContent = "";
+  setStatus("ZIPを展開中…"); clearConsole();
   try {
     const zip = await JSZip.loadAsync(file), entries = Object.values(zip.files).filter(f => !f.dir && !/(^|\/)(node_modules|\.git|dist|build|\.next|coverage)(\/|$)/.test(f.name) && (TEXT_EXT.test(f.name) || /\.(png|jpe?g|gif|webp|ico|woff2?|ttf|mp4|mp3)$/i.test(f.name))).slice(0,100);
     const files = {};
@@ -311,7 +311,7 @@ function run() {
   if (!editor) return;
   syncEditor();
   const code = projectFiles[activePath] || "", lang = language.value;
-  consoleEl.textContent = ""; status.textContent = "Running…";
+  clearConsole(); status.textContent = "Running…";
   try {
     const paths = Object.keys(projectFiles);
     const packageFile = paths.find(p => /(^|\/)package\.json$/i.test(p));
