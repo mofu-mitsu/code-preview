@@ -444,10 +444,25 @@ async function runRemoteProject() {
   setStatus("リモート環境を準備中…");
   frame.srcdoc = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="font:14px system-ui;display:grid;place-items:center;height:100vh;margin:0;background:#fcf9ff;color:#786583"><div>☁️ 隔離ランタイムを起動しています…<br><small>依存関係のインストールには時間がかかる場合があります</small></div></body></html>';
   try {
+    const runtimeFiles = getRuntimeFiles(activePath);
+    const manifest = Object.entries(runtimeFiles).map(([path, content]) => ({
+      path,
+      bytes: new TextEncoder().encode(content).byteLength
+    }));
+    const preflightResponse = await fetch("/api/runtime/preflight", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ files: manifest })
+    });
+    const preflight = await readApiResponse(preflightResponse);
+    if (!preflightResponse.ok || preflight.error) {
+      throw new Error(preflight.error || "Goバックエンドの事前検証に失敗しました");
+    }
+    log("Goバックエンドの事前検証: " + preflight.fileCount + " files · " + Math.round(preflight.totalBytes / 1024) + " KB", "info");
     const response = await fetch("/api/runtime/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ files: getRuntimeFiles(activePath) })
+      body: JSON.stringify({ files: runtimeFiles })
     });
     const result = await readApiResponse(response);
     if (token !== remotePollToken) return;
