@@ -10,7 +10,8 @@ GitHub リポジトリ・ZIP・ローカルフォルダを読み込み、ブラ�
 - HTML / CSS / JavaScript の静的プレビュー
 - Babel による単一ファイル JSX / TSX の変換プレビュー
 - PHP / Python / C / C++ / C# / Ruby / Go / Rust などの構文色分けとソース編集（実行ランタイムは未接続）
-- コンソールの文字サイズ・高さ調整
+- ボタンで開閉できるコンソール（文字サイズ・高さ調整）
+- モーダル形式の使い方説明と SVG favicon
 - Code Miller: https://mofu-mitsu.github.io/code-mirror/
 
 ## Next.js とビルドが必要なプロジェクト
