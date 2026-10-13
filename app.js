@@ -95,8 +95,10 @@ function resetSample() {
   setProject({"index.html":defaults.html,"style.css":defaults.css,"app.js":defaults.javascript}, "サンプル");
   sourceKind = "sample";
 }
-require.config({paths:{vs:"https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs"}});
-require(["vs/editor/editor.main"], () => {
+if (!window.__codePreviewMonacoStarted) {
+  window.__codePreviewMonacoStarted = true;
+  require.config({paths:{vs:"https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs"}});
+  require(["vs/editor/editor.main"], () => {
   editor = monaco.editor.create(document.getElementById("editor"), {
     value: defaults.html, language:"html", theme:"vs", automaticLayout:true,
     minimap:{enabled:false}, fontSize:13, tabSize:2, padding:{top:12}, wordWrap:"on"
@@ -107,7 +109,8 @@ require(["vs/editor/editor.main"], () => {
     status.textContent = "Modified";
   });
   resetSample();
-});
+  });
+}
 language.addEventListener("change", () => {
   const lang = language.value;
   const file = ({html:"index.html",css:"style.css",javascript:"app.js",jsx:"App.jsx",tsx:"App.tsx",php:"index.php",python:"main.py",c:"main.c",cpp:"main.cpp",csharp:"Program.cs",ruby:"main.rb",go:"main.go",rust:"main.rs"})[lang];
@@ -131,6 +134,16 @@ document.getElementById("reset").addEventListener("click", () => {
   frame.srcdoc = '<!doctype html><html lang="ja"><body style="font:14px system-ui;color:#9a8da2;display:grid;place-items:center;height:100vh;margin:0"><p>プレビューするファイルがありません</p></body></html>';
   setStatus("全ファイルを削除しました"); status.textContent = "Empty"; consoleEl.textContent = ""; toast("エディタ内のファイルをすべて削除しました", "success");
 });
+const consolePanel = document.getElementById("console-panel");
+document.getElementById("console-toggle").addEventListener("click", () => {
+  const willOpen = consolePanel.hidden;
+  consolePanel.hidden = !willOpen;
+  document.getElementById("console-toggle").setAttribute("aria-expanded", String(willOpen));
+  document.getElementById("console-toggle").classList.toggle("active", willOpen);
+});
+const aboutDialog = document.getElementById("about-dialog");
+document.getElementById("about-open").addEventListener("click", () => aboutDialog.showModal());
+document.getElementById("about-close").addEventListener("click", () => aboutDialog.close());
 document.getElementById("clear-console").addEventListener("click", () => consoleEl.textContent = "");
 document.getElementById("console-smaller").addEventListener("click", () => { consoleFontSize = Math.max(8, consoleFontSize - 1); consoleEl.style.fontSize = consoleFontSize + "px"; });
 document.getElementById("console-larger").addEventListener("click", () => { consoleFontSize = Math.min(20, consoleFontSize + 1); consoleEl.style.fontSize = consoleFontSize + "px"; });
@@ -165,7 +178,7 @@ document.getElementById("github-form").addEventListener("submit", async event =>
       const item = candidates[i], path = subdir ? item.path.slice(subdir.length).replace(/^\//,"") : item.path;
       setStatus("取得中 " + (i+1) + "/" + candidates.length);
       try {
-        const response = await fetch("https://raw.githubusercontent.com/" + owner + "/" + repo + "/" + encodeURIComponent(branch).replace(/%2F/g,"/") + "/" + item.path.split("/").map(encodeURIComponent).join("/"));
+        const response = await fetch("https://cdn.jsdelivr.net/gh/" + owner + "/" + repo + "@" + branch + "/" + item.path.split("/").map(encodeURIComponent).join("/"));
         if (!response.ok) continue;
         const blob = await response.blob();
         if (TEXT_EXT.test(path)) files[path] = await blob.text();
@@ -252,7 +265,7 @@ function resolvePath(from, target) {
 function githubRawUrl(path) {
   if (!githubMeta) return null;
   const repoPath = [githubMeta.subdir, path].filter(Boolean).join("/");
-  return "https://raw.githubusercontent.com/" + githubMeta.owner + "/" + githubMeta.repo + "/" + encodeURIComponent(githubMeta.branch).replace(/%2F/g,"/") + "/" + repoPath.split("/").map(encodeURIComponent).join("/");
+  return "https://cdn.jsdelivr.net/gh/" + githubMeta.owner + "/" + githubMeta.repo + "@" + githubMeta.branch + "/" + repoPath.split("/").map(encodeURIComponent).join("/");
 }
 function rewriteAssets(html, path) {
   if (githubMeta) {
@@ -309,8 +322,8 @@ function run() {
     const scripts = Object.values(packageData.scripts || {}).join(" ");
     const isBuildApp = isNext || /\b(vite|astro|nuxt|react-scripts|vue-cli-service)\b/.test(scripts);
     if (isNext) {
-      const stackUrl = githubMeta ? "https://stackblitz.com/github/" + githubMeta.owner + "/" + githubMeta.repo + "/tree/" + encodeURIComponent(githubMeta.branch) + "?embed=1&view=preview" : "";
-      currentPreview = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="font:14px/1.7 system-ui;padding:28px;color:#41364b;background:#fcf9ff"><h2>Next.js プロジェクトを検出しました</h2><p>Next.js は設定ファイルを直接表示するのではなく、依存関係のインストールとビルドを行って起動する必要があります。</p><p>この画面だけでは Next.js のビルドサーバーを起動できません。</p>' + (stackUrl ? '<p><a style="color:#7b4bc4;font-weight:700" href="' + stackUrl + '" target="_blank" rel="noopener">StackBlitz でこの GitHub プロジェクトを起動 ↗</a></p><p style="font-size:12px;color:#84768d">外部サービスで元リポジトリを起動します。Code Preview 内の編集内容は同期されません。</p>' : '<p>公開 GitHub リポジトリを読み込むと、StackBlitz で起動するリンクを利用できます。ZIP などから読み込んだ場合は、プロジェクトを GitHub に置いてから起動してください。</p>') + '</body></html>';
+      const sandboxUrl = githubMeta ? "https://codesandbox.io/p/github/" + githubMeta.owner + "/" + githubMeta.repo + "/tree/" + encodeURIComponent(githubMeta.branch) : "";
+      currentPreview = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="font:14px/1.7 system-ui;padding:28px;color:#41364b;background:#fcf9ff"><h2>Next.js プロジェクトを検出しました</h2><p>Next.js は設定ファイルを直接表示するのではなく、依存関係のインストールとビルドを行って起動する必要があります。</p><p>この画面だけでは Next.js のビルドサーバーを起動できません。</p>' + (sandboxUrl ? '<p><a style="color:#7b4bc4;font-weight:700" href="' + sandboxUrl + '" target="_blank" rel="noopener">CodeSandbox で開く ↗</a></p><p style="font-size:12px;color:#84768d">ビルド環境が必要なため、別サービスで元リポジトリを起動します。Code Preview 内の編集内容は同期されません。</p>' : '<p>公開 GitHub リポジトリを読み込むと、CodeSandbox で起動するリンクを利用できます。ZIP などから読み込んだ場合は、プロジェクトを GitHub に置いてから起動してください。</p>') + '</body></html>';
       frame.srcdoc = currentPreview; status.textContent = "Next.js · Build required"; log("Next.js を検出しました。実行にはビルド環境が必要です。", "info"); return;
     }
     if (isBuildApp) {
