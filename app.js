@@ -5,7 +5,7 @@ const defaults = {
   jsx: 'function App() {\n  return <main style={{fontFamily:"system-ui", padding:40}}>\n    <h1>Hello JSX 👋</h1><p>React is running in your browser.</p>\n  </main>;\n}\nReactDOM.createRoot(document.getElementById("root")).render(<App />);',
   tsx: 'type Props = { name: string };\nfunction App({ name }: Props) {\n  return <main style={{fontFamily:"system-ui", padding:40}}><h1>Hello, {name}!</h1><p>TSX preview without a build server.</p></main>;\n}\nReactDOM.createRoot(document.getElementById("root")).render(<App name="Mitsuki" />);'
 };
-const TEXT_EXT = /\.(html?|css|[cm]?js|jsx|tsx?|json|md|txt|svg|xml|ya?ml|toml|php|py|go|rs|rb|sh|sql|vue|svelte)$/i;
+const TEXT_EXT = /\.(html?|css|[cm]?js|jsx|tsx?|json|md|txt|svg|xml|ya?ml|toml|php|py|go|rs|rb|sh|sql|vue|svelte|c|h|hpp|cc|cpp|cxx|cs|java|kt|swift|dart|lua|r|pl|ex|exs|scala|clj)$/i;
 const MIME = {png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",webp:"image/webp",svg:"image/svg+xml",ico:"image/x-icon",woff:"font/woff",woff2:"font/woff2",ttf:"font/ttf",mp3:"audio/mpeg",mp4:"video/mp4"};
 let editor, activePath = "index.html", projectFiles = {}, currentPreview = "", sourceKind = "sample", githubMeta = null, lastGithubUrl = "", consoleFontSize = 11;
 const language = document.getElementById("language");
@@ -38,7 +38,7 @@ function log(message, type) {
 function extension(path) { return (path.split(".").pop() || "").toLowerCase(); }
 function editorLanguage(path) {
   const ext = extension(path);
-  return ({htm:"html",html:"html",css:"css",js:"javascript",mjs:"javascript",cjs:"javascript",jsx:"javascript",ts:"typescript",tsx:"typescript",json:"json",md:"markdown",py:"python",php:"php",go:"go",rs:"rust",rb:"ruby",sql:"sql",xml:"xml",svg:"xml",yml:"yaml",yaml:"yaml"})[ext] || "plaintext";
+  return ({htm:"html",html:"html",css:"css",js:"javascript",mjs:"javascript",cjs:"javascript",jsx:"javascript",ts:"typescript",tsx:"typescript",json:"json",md:"markdown",py:"python",php:"php",go:"go",rs:"rust",rb:"ruby",sql:"sql",xml:"xml",svg:"xml",yml:"yaml",yaml:"yaml",c:"c",h:"c",hpp:"cpp",cc:"cpp",cpp:"cpp",cxx:"cpp",cs:"csharp",java:"java",kt:"kotlin",swift:"swift",dart:"dart",lua:"lua",r:"r",pl:"perl",ex:"elixir",exs:"elixir",scala:"scala",clj:"clojure"})[ext] || "plaintext";
 }
 function renderFileList() {
   fileList.textContent = "";
@@ -188,7 +188,7 @@ document.getElementById("zip-input").addEventListener("change", async event => {
     }
     const cleaned = stripCommonRoot(files);
     if (!Object.keys(cleaned).length) throw new Error("ZIP内に読み込めるファイルがありません。");
-    setProject(cleaned, file.name);
+    setProject(cleaned, file.name); toast("ZIP から " + Object.keys(cleaned).length + " ファイルを読み込みました", "success");
   } catch (error) { setStatus("読み込み失敗"); log(error.message || error, "error"); }
   event.target.value = "";
 });
@@ -202,7 +202,7 @@ document.getElementById("folder-input").addEventListener("change", async event =
     if (TEXT_EXT.test(path)) files[path] = await file.text();
     else files[path] = await blobToDataUrl(file);
   }
-  setProject(stripCommonRoot(files), "フォルダ · " + (picked[0].webkitRelativePath.split("/")[0] || "project"));
+  setProject(stripCommonRoot(files), "フォルダ · " + (picked[0].webkitRelativePath.split("/")[0] || "project")); toast("フォルダから " + Object.keys(projectFiles).length + " ファイルを読み込みました", "success");
   event.target.value = "";
 });
 function stripCommonRoot(files) {
@@ -282,6 +282,10 @@ function buildPreview(code, lang) {
   } catch(error) { throw new Error("Babel: " + error.message); }
   return '<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0}</style><script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"><\/script><script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"><\/script></head><body><div id="root"></div><script>window.addEventListener("error",e=>parent.postMessage({type:"preview-error",message:e.message},"*"));try{' + escapeScript(transformed) + '}catch(e){parent.postMessage({type:"preview-error",message:e.stack||e.message},"*")}<\/script></body></html>';
 }
+function instrumentPreview(html) {
+  const bridge = '<script>(function(){["log","info","warn","error","debug"].forEach(function(level){var original=console[level];console[level]=function(){try{parent.postMessage({type:"preview-log",level:level,message:Array.from(arguments).map(function(v){try{return typeof v==="string"?v:JSON.stringify(v)}catch(_){return String(v)}}).join(" ")},"*")}catch(_){};if(original)original.apply(console,arguments)}});window.addEventListener("error",function(e){parent.postMessage({type:"preview-error",message:e.message+" ("+e.filename+":"+e.lineno+")"},"*")});window.addEventListener("unhandledrejection",function(e){parent.postMessage({type:"preview-error",message:String(e.reason)},"*")})})();<\/script>';
+  return /<head[^>]*>/i.test(html) ? html.replace(/<head([^>]*)>/i, "<head$1>" + bridge) : bridge + html;
+}
 function run() {
   if (!editor) return;
   syncEditor();
@@ -307,16 +311,17 @@ function run() {
     }
     let html;
     const entry = paths.find(p => /(^|\/)index\.html?$/i.test(p));
-    if (entry && (/\.html?$/i.test(activePath) || activePath === entry)) html = rewriteAssets(projectFiles[entry],entry);
+    if (entry && !/\.(jsx|tsx)$/i.test(activePath)) html = rewriteAssets(projectFiles[entry],entry);
     else if (/\.(php|py|rb|go|rs|c|h|cpp|cc|cxx|cs|java|kt|swift)$/i.test(activePath)) {
       html = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="font:14px/1.7 system-ui;padding:28px;color:#41364b;background:#fcf9ff"><h2>' + extension(activePath).toUpperCase() + ' ソースファイル</h2><p>この言語のコードは読み込み・編集できますが、実行には対応するランタイム／コンパイラが必要です。現在のブラウザプレビューでは実行していません。</p><p>ソースは左のエディタで確認できます。</p></body></html>';
       log(extension(activePath).toUpperCase() + " の実行ランタイムは未接続です。ソース表示・編集は可能です。", "info");
     } else html = buildPreview(code,lang);
+    html = instrumentPreview(html);
     currentPreview = html; frame.srcdoc = html; status.textContent = "Ready";
   } catch(error) { status.textContent = "Error"; log(error.stack || error.message,"error"); toast(error.message || "プレビューに失敗しました", "error"); }
 }
 window.addEventListener("message", event => {
   if (!event.data) return;
   if (event.data.type === "preview-error") { status.textContent = "Preview error"; log(event.data.message,"error"); }
-  if (event.data.type === "preview-log") log(event.data.message);
+  if (event.data.type === "preview-log") log(event.data.message, event.data.level);
 });
