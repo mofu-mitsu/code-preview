@@ -443,8 +443,10 @@ function run() {
     const scripts = Object.values(packageData.scripts || {}).join(" ");
     const isBuildApp = isNext || /\b(vite|astro|nuxt|react-scripts|vue-cli-service|next)\b/.test(scripts);
     if (isBuildApp) { runRemoteProject(); return; }
-    if (/\.(php|py|go|rs|c|h|cpp|cc|cxx|rb)$/i.test(activePath) || ["php","python","go","rust","c","cpp","ruby"].includes(lang)) {
-      runRemoteCode(lang); return;
+    const sourceRuntime = ({php:"php",py:"python",go:"go",rs:"rust",rb:"ruby",c:"c",h:"c",cpp:"cpp",cc:"cpp",cxx:"cpp"})[extension(activePath)];
+    const runtimeLang = sourceRuntime || lang;
+    if (sourceRuntime || ["php","python","go","rust","c","cpp","ruby"].includes(lang)) {
+      runRemoteCode(runtimeLang); return;
     }
     let html;
     const entry = paths.find(p => /(^|\/)index\.html?$/i.test(p));
