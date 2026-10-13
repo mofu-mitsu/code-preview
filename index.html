@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Code Preview</title>
-  <meta name="description" content="GitHub・ZIP・フォルダからコードを読み込み、ブラウザ上でプレビューできる開発ツール" />
+  <title>Code Preview — ブラウザコード実験室</title>
+  <meta name="description" content="HTML・CSS・JavaScriptなどのコードを編集・プレビュー。GitHub・ZIP・フォルダからプロジェクトを読み込めます。" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -13,7 +13,7 @@
     <div class="brand-wrap"><div class="brand">Code Preview <span class="beta">BETA</span></div><div class="subtitle">Bring your code. See it come alive.</div></div>
     <div class="controls">
       <select id="language" aria-label="Language"><option value="html">HTML</option><option value="css">CSS</option><option value="javascript">JavaScript</option><option value="jsx">JSX / React</option><option value="tsx">TSX / React</option></select>
-      <button id="run" class="primary">▶ 実行</button><button id="reset">リセット</button>
+      <button id="run" class="primary">▶ 実行</button><button id="reset" title="編集中のファイルをすべて消去">全消去</button>
     </div>
   </header>
   <section class="importbar">
@@ -21,15 +21,16 @@
     <label class="file-button">ZIPを読み込む<input id="zip-input" type="file" accept=".zip,application/zip" /></label>
     <label class="file-button">フォルダを読み込む<input id="folder-input" type="file" webkitdirectory multiple /></label>
     <button id="paste-open" type="button">コードを貼り付け</button>
+    <a class="tool-link" href="https://mofu-mitsu.github.io/code-mirror/" target="_blank" rel="noopener noreferrer">Code Miller ↗</a>
     <span id="project-status" role="status">サンプルプロジェクト</span>
   </section>
   <main class="workspace">
     <aside class="files-panel panel"><div class="panel-head"><span>PROJECT FILES</span><button id="new-file" class="mini">＋ ファイル</button></div><div id="file-list" class="file-list"></div></aside>
     <section class="panel editor-panel"><div class="panel-head"><span id="active-file-label">CODE</span><span id="status">Ready</span></div><div id="editor"></div></section>
-    <section class="panel preview-panel"><div class="panel-head"><span>PREVIEW</span><div class="head-actions"><button id="open-new" class="mini">↗ 別タブ</button><button id="refresh" class="mini">更新</button></div></div><iframe id="preview" sandbox="allow-scripts allow-forms" title="Code preview"></iframe></section>
+    <section class="panel preview-panel"><div class="panel-head"><span>PREVIEW</span><div class="head-actions"><button id="open-new" class="mini">↗ 別タブ</button><button id="refresh" class="mini">更新</button></div></div><iframe id="preview" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals" title="Code preview"></iframe></section>
   </main>
-  <section class="console-panel"><div class="panel-head"><span>CONSOLE</span><button id="clear-console" class="mini">Clear</button></div><pre id="console"></pre></section>
-  <footer><span>Code Preview · by mofu-mitsu</span><span>Browser sandbox · GitHub / ZIP / Folder import</span></footer>
+  <section class="console-panel" id="console-panel"><div class="panel-head"><span>CONSOLE</span><div class="console-actions"><button id="console-smaller" class="mini" title="文字を縮小">A−</button><button id="console-larger" class="mini" title="文字を拡大">A＋</button><button id="console-height-smaller" class="mini" title="高さを縮小">−</button><button id="console-height-larger" class="mini" title="高さを拡大">＋</button><button id="clear-console" class="mini">Clear</button></div></div><pre id="console"></pre></section>
+  <section class="about"><div class="about-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 5.5v15M8 7h8M8 10h7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div><div><strong>Code Preview について</strong><p>GitHub リポジトリ・ZIP・ローカルフォルダを読み込み、複数ファイルのコードを編集しながら動作を確認できる実験用ツールです。HTML／CSS／JavaScript はブラウザでプレビューできます。Next.js などのフレームワークや PHP・Python・C 系言語などは、実行環境・ビルド環境が必要な場合があります。読み込んだファイルはこの画面内で編集され、元のリポジトリへ自動保存はされません。</p><p class="about-links"><a href="https://mofu-mitsu.github.io/code-mirror/" target="_blank" rel="noopener noreferrer">Code Miller — コード比較ツール ↗</a><span>by mofu-mitsu</span></p></div></section><footer><span>Code Preview · by mofu-mitsu</span><span>Browser sandbox · GitHub / ZIP / Folder import</span></footer><div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
   <dialog id="paste-dialog"><form method="dialog" class="dialog-card"><div class="dialog-title">コードを貼り付け</div><p>エディタへ直接貼り付けてもOK。ここではコードをまとめて読み込めます。</p><input id="paste-filename" value="index.html" aria-label="File name" /><textarea id="paste-code" spellcheck="false" placeholder="ここにコードを貼り付け…"></textarea><div class="dialog-actions"><button value="cancel">キャンセル</button><button id="paste-load" value="default" class="primary">エディタに読み込む</button></div></form></dialog>
   <dialog id="newfile-dialog"><form method="dialog" class="dialog-card"><div class="dialog-title">ファイルを追加</div><input id="newfile-name" placeholder="例: src/app.js" /><div class="dialog-actions"><button value="cancel">キャンセル</button><button id="newfile-create" value="default" class="primary">作成</button></div></form></dialog>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.min.js"></script>
