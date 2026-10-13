@@ -15,14 +15,20 @@ export default async function handler(req, res) {
     const sandbox = await Sandbox.get({ name: id });
     const result = await sandbox.runCommand({
       cmd: "bash",
-      args: ["-c", "cat /vercel/sandbox/.code-preview-status.json 2>/dev/null || printf '{}'; echo __LOG__; tail -n 18 /vercel/sandbox/.code-preview-build.log /vercel/sandbox/.code-preview-server.log 2>/dev/null"],
+      args: ["-c", "cat /vercel/sandbox/.code-preview-status.json 2>/dev/null || printf '{}'; echo __LOG__; tail -n 18 /vercel/sandbox/.code-preview-build.log /vercel/sandbox/.code-preview-server.log /vercel/sandbox/.code-preview-install.log 2>/dev/null; echo __RESULT__; cat /vercel/sandbox/.code-preview-result.json 2>/dev/null || true"],
       cwd: "/vercel/sandbox"
     });
     const output = await result.stdout();
     const parts = output.split("__LOG__");
+    const resultParts = (parts[1] || "").split("__RESULT__");
     let state = { state: "starting", message: "起動状態を確認中です" };
+    let execution = null;
     try { state = JSON.parse(parts[0].trim()); } catch {}
-    return send(res, 200, { ...state, logs: (parts[1] || "").trim().slice(-8000) });
+    try { execution = JSON.parse((resultParts[1] || "").trim()); } catch {}
+    const payload = { ...state, logs: (resultParts[0] || "").trim().slice(-8000) };
+    if (execution) payload.result = execution;
+    if (state.state === "done") { try { await sandbox.stop(); } catch {} }
+    return send(res, 200, payload);
   } catch (error) {
     return send(res, 200, { state: "error", message: "実行環境に接続できません: " + (error?.message || "unknown") });
   }
