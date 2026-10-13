@@ -15,7 +15,8 @@ const defaults = {
 };
 const TEXT_EXT = /\.(html?|css|[cm]?js|jsx|tsx?|json|md|txt|svg|xml|ya?ml|toml|php|py|go|rs|rb|sh|sql|vue|svelte|c|h|hpp|cc|cpp|cxx|cs|java|kt|swift|dart|lua|r|pl|ex|exs|scala|clj)$/i;
 const MIME = {png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",webp:"image/webp",svg:"image/svg+xml",ico:"image/x-icon",woff:"font/woff",woff2:"font/woff2",ttf:"font/ttf",mp3:"audio/mpeg",mp4:"video/mp4"};
-let editor, activePath = "index.html", projectFiles = {}, currentPreview = "", sourceKind = "sample", githubMeta = null, lastGithubUrl = "", consoleFontSize = 11;\nconst consoleCounts = {error:0, warn:0, info:0, log:0};
+let editor, activePath = "index.html", projectFiles = {}, currentPreview = "", sourceKind = "sample", githubMeta = null, lastGithubUrl = "", consoleFontSize = 11;
+const consoleCounts = {error:0, warn:0, info:0, log:0};
 const language = document.getElementById("language");
 const status = document.getElementById("status");
 const consoleEl = document.getElementById("console");
@@ -142,9 +143,11 @@ document.getElementById("console-toggle").addEventListener("click", () => {
   document.getElementById("console-toggle").classList.toggle("active", willOpen);
 });
 const aboutDialog = document.getElementById("about-dialog");
-document.getElementById("about-open").addEventListener("click", () => aboutDialog.showModal());\naboutDialog.addEventListener("click", event => { if (event.target === aboutDialog) aboutDialog.close(); });
+document.getElementById("about-open").addEventListener("click", () => aboutDialog.showModal());
+aboutDialog.addEventListener("click", event => { if (event.target === aboutDialog) aboutDialog.close(); });
 document.getElementById("about-close").addEventListener("click", () => aboutDialog.close());
-document.getElementById("clear-console").addEventListener("click", clearConsole);\ndocument.getElementById("console-details").addEventListener("click", () => { consolePanel.hidden = false; document.getElementById("console-toggle").setAttribute("aria-expanded", "true"); document.getElementById("console-toggle").classList.add("active"); consoleEl.scrollTop = consoleEl.scrollHeight; });
+document.getElementById("clear-console").addEventListener("click", clearConsole);
+document.getElementById("console-details").addEventListener("click", () => { consolePanel.hidden = false; document.getElementById("console-toggle").setAttribute("aria-expanded", "true"); document.getElementById("console-toggle").classList.add("active"); consoleEl.scrollTop = consoleEl.scrollHeight; });
 document.getElementById("console-smaller").addEventListener("click", () => { consoleFontSize = Math.max(8, consoleFontSize - 1); consoleEl.style.fontSize = consoleFontSize + "px"; });
 document.getElementById("console-larger").addEventListener("click", () => { consoleFontSize = Math.min(20, consoleFontSize + 1); consoleEl.style.fontSize = consoleFontSize + "px"; });
 document.getElementById("console-height-smaller").addEventListener("click", () => { const panel = document.getElementById("console-panel"); panel.style.height = Math.max(65, panel.getBoundingClientRect().height - 30) + "px"; });
