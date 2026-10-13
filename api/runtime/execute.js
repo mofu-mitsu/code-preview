@@ -1,6 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { Sandbox } from "@vercel/sandbox";
 
-export const config = { maxDuration: 300 };
+export const config = { maxDuration: 30 };
 const MAX_FILES = 100;
 const MAX_TOTAL_BYTES = 2_000_000;
 function send(res, status, body) {
@@ -19,6 +20,9 @@ function toBuffer(value) {
   const match = value.match(/^data:[^,]*?(;base64)?,([\s\S]*)$/);
   if (!match) return Buffer.from(value, "utf8");
   return match[1] ? Buffer.from(match[2], "base64") : Buffer.from(decodeURIComponent(match[2]), "utf8");
+}
+function quote(value) {
+  return "'" + String(value).replace(/'/g, "'\\''") + "'";
 }
 export default async function handler(req, res) {
   if (req.method !== "POST") return send(res, 405, { error: "POST only" });
@@ -41,34 +45,42 @@ export default async function handler(req, res) {
     const paths = safeFiles.map(file => file.path);
     const active = String(body.activePath || paths[0]);
     if (!paths.includes(active)) return send(res, 400, { error: "実行対象ファイルが見つかりません" });
-    const root = "/vercel/sandbox";
     const has = suffix => paths.some(path => path.toLowerCase().endsWith(suffix.toLowerCase()));
-    let command = "", args = [], install = "";
-    if (language === "python") { command = "python3"; args = [active]; }
-    else if (language === "php") { install = "apt-get update -qq && apt-get install -y -qq php-cli"; command = "php"; args = [active]; }
-    else if (language === "ruby") { install = "apt-get update -qq && apt-get install -y -qq ruby"; command = "ruby"; args = [active]; }
+    let install = "", command = "";
+    if (language === "python") command = "python3 " + quote(active);
+    else if (language === "php") { install = "sudo dnf install -y php-cli"; command = "php " + quote(active); }
+    else if (language === "ruby") { install = "sudo dnf install -y ruby"; command = "ruby " + quote(active); }
     else if (language === "go") {
-      install = "apt-get update -qq && apt-get install -y -qq golang-go";
-      command = "bash"; args = ["-lc", has("go.mod") ? "go run ." : "go run " + JSON.stringify(active)];
+      install = "sudo dnf install -y golang";
+      command = has("go.mod") ? "go run ." : "go run " + quote(active);
     } else if (language === "rust") {
-      install = "apt-get update -qq && apt-get install -y -qq rustc cargo";
-      command = "bash"; args = ["-lc", has("cargo.toml") ? "cargo run" : "rustc " + JSON.stringify(active) + " -o /tmp/code-preview-rust && /tmp/code-preview-rust"];
+      install = "sudo dnf install -y rust cargo";
+      command = has("cargo.toml") ? "cargo run" : "rustc " + quote(active) + " -o /tmp/code-preview-rust && /tmp/code-preview-rust";
     } else if (language === "c" || language === "cpp") {
-      install = "apt-get update -qq && apt-get install -y -qq build-essential";
-      const compiler = language === "c" ? "gcc" : "g++";
-      command = "bash"; args = ["-lc", compiler + " " + JSON.stringify(active) + " -o /tmp/code-preview-bin && /tmp/code-preview-bin"];
+      install = "sudo dnf install -y gcc gcc-c++";
+      command = (language === "c" ? "gcc " : "g++ ") + quote(active) + " -o /tmp/code-preview-bin && /tmp/code-preview-bin";
     } else return send(res, 400, { error: "この言語のリモート実行には未対応です: " + language });
-    sandbox = await Sandbox.create({ persistent: false, timeout: 280_000, resources: { vcpus: 1 }, networkPolicy: "allow-all" });
+
+    const id = "cp-" + randomUUID();
+    sandbox = await Sandbox.create({ name: id, persistent: false, timeout: 280_000, resources: { vcpus: 1 }, networkPolicy: "allow-all" });
     await sandbox.writeFiles(safeFiles);
-    if (install) {
-      const installed = await sandbox.runCommand({ cmd: "bash", args: ["-lc", install], sudo: true, cwd: root });
-      if (installed.exitCode !== 0) return send(res, 200, { exitCode: installed.exitCode, stdout: "", stderr: (await installed.stderr()).slice(-12000) || "ランタイムのインストールに失敗しました" });
-    }
-    const result = await sandbox.runCommand({ cmd: command, args, cwd: root });
-    return send(res, 200, { exitCode: result.exitCode, stdout: (await result.stdout()).slice(-12000), stderr: (await result.stderr()).slice(-12000) });
+    const script = `#!/usr/bin/env bash
+cd /vercel/sandbox
+printf '%s' '{"state":"running","message":"隔離環境でコードを実行しています"}' > .code-preview-status.json
+: > .code-preview-stdout.txt
+: > .code-preview-stderr.txt
+${install ? install + " > .code-preview-install.log 2>&1\nINSTALL_CODE=$?\nif [ \"$INSTALL_CODE\" -ne 0 ]; then cp .code-preview-install.log .code-preview-stderr.txt; printf '%s' '{\"state\":\"done\",\"exitCode\":$INSTALL_CODE}' > /tmp/cp-result.tmp; fi\nif [ \"$INSTALL_CODE\" -ne 0 ]; then RUN_CODE=$INSTALL_CODE; else\n" : ""}
+${command} > .code-preview-stdout.txt 2> .code-preview-stderr.txt
+RUN_CODE=$?
+${install ? "fi\n" : ""}
+printf '%s' "$RUN_CODE" > .code-preview-exit-code.txt
+python3 -c 'import json,pathlib; p=pathlib.Path("/vercel/sandbox"); code=int((p/".code-preview-exit-code.txt").read_text()); data={"state":"done","message":"実行が完了しました","exitCode":code,"stdout":(p/".code-preview-stdout.txt").read_text(errors="replace")[-12000:],"stderr":(p/".code-preview-stderr.txt").read_text(errors="replace")[-12000:]}; (p/".code-preview-result.json").write_text(json.dumps(data,ensure_ascii=False)); (p/".code-preview-status.json").write_text(json.dumps({"state":"done","message":"実行が完了しました"},ensure_ascii=False))'
+`;
+    await sandbox.writeFiles([{ path: ".code-preview-execute.sh", content: Buffer.from(script), mode: 0o755 }]);
+    await sandbox.runCommand({ cmd: "bash", args: ["/vercel/sandbox/.code-preview-execute.sh"], cwd: "/vercel/sandbox", detached: true });
+    return send(res, 200, { id, state: "running", message: "隔離環境でコードを実行しています" });
   } catch (error) {
-    return send(res, 500, { error: error?.message || "コードを実行できませんでした" });
-  } finally {
     if (sandbox) { try { await sandbox.stop(); } catch {} }
+    return send(res, 500, { error: error?.message || "コードを実行できませんでした" });
   }
 }
