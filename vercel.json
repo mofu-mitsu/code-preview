@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/runtime/execute.js": { "maxDuration": 300 },
+    "api/runtime/execute.js": { "maxDuration": 60 },
     "api/runtime/start.js": { "maxDuration": 30 },
     "api/runtime/status.js": { "maxDuration": 20 }
   },
