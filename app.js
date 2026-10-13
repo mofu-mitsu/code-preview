@@ -450,6 +450,7 @@ async function runRemoteProject() {
     throw new Error("起動がタイムアウトしました。コンソールのログを確認してください。");
   } catch (error) {
     if (token !== remotePollToken) return;
+    await stopRemoteRuntime();
     status.textContent = "Runtime error";
     setStatus("リモートプレビューの起動に失敗");
     log(error.message || String(error), "error");
