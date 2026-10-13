@@ -353,6 +353,28 @@ async function readApiResponse(response) {
     throw new Error("APIがJSON以外を返しました (HTTP " + response.status + "): " + detail);
   }
 }
+function getRuntimeProjectFiles() {
+  const files = {};
+  const paths = Object.keys(projectFiles).sort((a, b) => {
+    const priority = path => /(^|\/)(package\.json|go\.mod|go\.sum|cargo\.toml|cargo\.lock|requirements\.txt|pyproject\.toml|composer\.json|gemfile)$/i.test(path) ? 0 : 1;
+    return priority(a) - priority(b) || a.localeCompare(b);
+  });
+  let bytes = 0;
+  for (const path of paths) {
+    const value = projectFiles[path];
+    if (typeof value !== "string" || value.startsWith("data:")) continue;
+    const size = new TextEncoder().encode(value).byteLength;
+    if (bytes + size > 1_800_000) {
+      throw new Error("Next.jsプロジェクトのテキストファイルが1.8MBを超えています。不要なファイルや大きなファイルを外してから再実行してください。");
+    }
+    files[path] = value;
+    bytes += size;
+  }
+  if (!Object.keys(files).some(path => /(^|\/)package\.json$/i.test(path))) {
+    throw new Error("Next.jsプロジェクトの package.json が見つかりません。");
+  }
+  return files;
+}
 function getRuntimeFiles(active) {
   const files = {};
   const paths = Object.keys(projectFiles);
@@ -444,7 +466,7 @@ async function runRemoteProject() {
   setStatus("リモート環境を準備中…");
   frame.srcdoc = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="font:14px system-ui;display:grid;place-items:center;height:100vh;margin:0;background:#fcf9ff;color:#786583"><div>☁️ 隔離ランタイムを起動しています…<br><small>依存関係のインストールには時間がかかる場合があります</small></div></body></html>';
   try {
-    const runtimeFiles = getRuntimeFiles(activePath);
+    const runtimeFiles = getRuntimeProjectFiles();
     const manifest = Object.entries(runtimeFiles).map(([path, content]) => ({
       path,
       bytes: new TextEncoder().encode(content).byteLength
