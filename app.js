@@ -353,6 +353,27 @@ async function readApiResponse(response) {
     throw new Error("APIがJSON以外を返しました (HTTP " + response.status + "): " + detail);
   }
 }
+function getRuntimeFiles(active) {
+  const files = {};
+  const paths = Object.keys(projectFiles);
+  const ordered = [active, ...paths.filter(path => path !== active).sort((a, b) => {
+    const priority = path => /(^|\/)(go\.mod|go\.sum|cargo\.toml|cargo\.lock|requirements\.txt|pyproject\.toml|composer\.json|gemfile|package\.json)$/i.test(path) ? 0 : 1;
+    return priority(a) - priority(b) || a.localeCompare(b);
+  })];
+  let bytes = 0;
+  for (const path of ordered) {
+    const value = projectFiles[path];
+    if (typeof value !== "string" || value.startsWith("data:")) continue;
+    const size = new TextEncoder().encode(value).byteLength;
+    if (bytes + size > 1_800_000) {
+      throw new Error("実行用のテキストファイルが1.8MBを超えています。不要なファイルを外してから再実行してください。画像などのdata URIは実行APIに送信しません。");
+    }
+    files[path] = value;
+    bytes += size;
+  }
+  if (!files[active]) throw new Error("実行対象ファイルが見つからないか、テキストファイルではありません。");
+  return files;
+}
 let remoteRuntimeId = null;
 let remotePollToken = 0;
 async function stopRemoteRuntime() {
@@ -378,7 +399,7 @@ async function runRemoteCode(lang) {
     const response = await fetch("/api/runtime/execute", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ language: lang, activePath, files: projectFiles })
+      body: JSON.stringify({ language: lang, activePath, files: getRuntimeFiles(activePath) })
     });
     const started = await readApiResponse(response);
     if (token !== remotePollToken) return;
