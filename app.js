@@ -3,7 +3,15 @@ const defaults = {
   css: 'body { font-family: system-ui; display: grid; place-items: center; height: 100vh; margin: 0; }\n.card { padding: 24px; border-radius: 16px; background: #f4eaff; }',
   javascript: 'document.body.innerHTML = \'<div class="card">Hello from JavaScript!</div>\';\ndocument.body.style.cssText = "font-family:system-ui;display:grid;place-items:center;height:100vh";',
   jsx: 'function App() {\n  return <main style={{fontFamily:"system-ui", padding:40}}>\n    <h1>Hello JSX 👋</h1><p>React is running in your browser.</p>\n  </main>;\n}\nReactDOM.createRoot(document.getElementById("root")).render(<App />);',
-  tsx: 'type Props = { name: string };\nfunction App({ name }: Props) {\n  return <main style={{fontFamily:"system-ui", padding:40}}><h1>Hello, {name}!</h1><p>TSX preview without a build server.</p></main>;\n}\nReactDOM.createRoot(document.getElementById("root")).render(<App name="Mitsuki" />);'
+  tsx: 'type Props = { name: string };\nfunction App({ name }: Props) {\n  return <main style={{fontFamily:"system-ui", padding:40}}><h1>Hello, {name}!</h1><p>TSX preview without a build server.</p></main>;\n}\nReactDOM.createRoot(document.getElementById("root")).render(<App name="Mitsuki" />);',
+  php: '<?php\necho "Hello from PHP!";\n',
+  python: 'print("Hello from Python!")\n',
+  c: '#include <stdio.h>\nint main(void) { printf("Hello from C!\\n"); return 0; }\n',
+  cpp: '#include <iostream>\nint main() { std::cout << "Hello from C++!\\n"; return 0; }\n',
+  csharp: 'using System;\nclass Program { static void Main() { Console.WriteLine("Hello from C#!"); } }\n',
+  ruby: 'puts "Hello from Ruby!"\n',
+  go: 'package main\nimport "fmt"\nfunc main() { fmt.Println("Hello from Go!") }\n',
+  rust: 'fn main() { println!("Hello from Rust!"); }\n'
 };
 const TEXT_EXT = /\.(html?|css|[cm]?js|jsx|tsx?|json|md|txt|svg|xml|ya?ml|toml|php|py|go|rs|rb|sh|sql|vue|svelte|c|h|hpp|cc|cpp|cxx|cs|java|kt|swift|dart|lua|r|pl|ex|exs|scala|clj)$/i;
 const MIME = {png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",webp:"image/webp",svg:"image/svg+xml",ico:"image/x-icon",woff:"font/woff",woff2:"font/woff2",ttf:"font/ttf",mp3:"audio/mpeg",mp4:"video/mp4"};
@@ -102,7 +110,7 @@ require(["vs/editor/editor.main"], () => {
 });
 language.addEventListener("change", () => {
   const lang = language.value;
-  const file = ({html:"index.html",css:"style.css",javascript:"app.js",jsx:"App.jsx",tsx:"App.tsx"})[lang];
+  const file = ({html:"index.html",css:"style.css",javascript:"app.js",jsx:"App.jsx",tsx:"App.tsx",php:"index.php",python:"main.py",c:"main.c",cpp:"main.cpp",csharp:"Program.cs",ruby:"main.rb",go:"main.go",rust:"main.rs"})[lang];
   if (projectFiles[file] !== undefined) { openFile(file); return; }
   projectFiles[file] = defaults[lang]; openFile(file); run();
 });
@@ -189,7 +197,7 @@ document.getElementById("zip-input").addEventListener("change", async event => {
     const cleaned = stripCommonRoot(files);
     if (!Object.keys(cleaned).length) throw new Error("ZIP内に読み込めるファイルがありません。");
     setProject(cleaned, file.name); toast("ZIP から " + Object.keys(cleaned).length + " ファイルを読み込みました", "success");
-  } catch (error) { setStatus("読み込み失敗"); log(error.message || error, "error"); }
+  } catch (error) { setStatus("読み込み失敗"); log(error.message || error, "error"); toast(error.message || "読み込みに失敗しました", "error"); }
   event.target.value = "";
 });
 document.getElementById("folder-input").addEventListener("change", async event => {
