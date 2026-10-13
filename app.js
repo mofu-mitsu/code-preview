@@ -39,10 +39,41 @@ function toast(message, kind = "info") {
   requestAnimationFrame(() => node.classList.add("show"));
   setTimeout(() => { node.classList.remove("show"); setTimeout(() => node.remove(), 250); }, 3200);
 }
+function updateConsoleSummary() {
+  const errors = document.getElementById("console-error-count-value");
+  const warnings = document.getElementById("console-warning-count-value");
+  const total = document.getElementById("console-total-count");
+  if (errors) { errors.textContent = String(consoleCounts.error); errors.parentElement.classList.toggle("has-count", consoleCounts.error > 0); }
+  if (warnings) { warnings.textContent = String(consoleCounts.warn); warnings.parentElement.classList.toggle("has-count", consoleCounts.warn > 0); }
+  if (total) total.textContent = String(consoleCounts.error + consoleCounts.warn + consoleCounts.info + consoleCounts.log);
+}
+function clearConsole() {
+  consoleEl.textContent = "";
+  Object.keys(consoleCounts).forEach(key => consoleCounts[key] = 0);
+  updateConsoleSummary();
+}
 function log(message, type) {
+  const kind = String(type || "log").toLowerCase();
+  if (kind === "error") consoleCounts.error++;
+  else if (kind === "warn" || kind === "warning") consoleCounts.warn++;
+  else if (kind === "info" || kind === "debug") consoleCounts.info++;
+  else consoleCounts.log++;
   const line = document.createElement("div");
-  line.textContent = (type ? "[" + type + "] " : "") + String(message);
-  consoleEl.appendChild(line); consoleEl.scrollTop = consoleEl.scrollHeight;
+  line.className = "console-line console-" + (kind === "warning" ? "warn" : kind);
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("aria-hidden", "true");
+  if (kind === "error") icon.innerHTML = '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="m9 9 6 6m0-6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+  else if (kind === "warn" || kind === "warning") icon.innerHTML = '<path d="M12 3 22 21H2L12 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5m0 3h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+  else if (kind === "info") icon.innerHTML = '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5m0-8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+  else icon.innerHTML = '<path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+  icon.classList.add("console-line-icon");
+  const text = document.createElement("span");
+  text.textContent = (type ? "[" + type + "] " : "") + String(message);
+  line.append(icon, text);
+  consoleEl.appendChild(line);
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+  updateConsoleSummary();
 }
 function extension(path) { return (path.split(".").pop() || "").toLowerCase(); }
 function editorLanguage(path) {
