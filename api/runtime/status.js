@@ -13,7 +13,11 @@ export default async function handler(req, res) {
   if (!/^cp-[0-9a-f-]{36}$/.test(id)) return send(res, 400, { error: "不正なセッションIDです" });
   try {
     const sandbox = await Sandbox.get({ name: id });
-    const result = await sandbox.runCommand("bash", ["-c", "cat /vercel/sandbox/.code-preview-status.json 2>/dev/null || echo '{\\"state\\":\\"starting\\",\\"message\\":\\"起動状態を確認中です\\"}; echo __LOG__; tail -n 18 /vercel/sandbox/.code-preview-build.log /vercel/sandbox/.code-preview-server.log 2>/dev/null"], { cwd: "/vercel/sandbox" });
+    const result = await sandbox.runCommand({
+      cmd: "bash",
+      args: ["-c", "cat /vercel/sandbox/.code-preview-status.json 2>/dev/null || printf '{}'; echo __LOG__; tail -n 18 /vercel/sandbox/.code-preview-build.log /vercel/sandbox/.code-preview-server.log 2>/dev/null"],
+      cwd: "/vercel/sandbox"
+    });
     const output = await result.stdout();
     const parts = output.split("__LOG__");
     let state = { state: "starting", message: "起動状態を確認中です" };
