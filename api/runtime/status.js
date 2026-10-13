@@ -30,6 +30,10 @@ export default async function handler(req, res) {
     if (state.state === "done") { try { await sandbox.stop(); } catch {} }
     return send(res, 200, payload);
   } catch (error) {
+    const code = error?.status ?? error?.statusCode ?? error?.response?.status;
+    if (code === 404 || /status code 404/i.test(error?.message || "")) {
+      return send(res, 200, { state: "starting", message: "ランタイム登録を確認中です。再接続しています…" });
+    }
     return send(res, 200, { state: "error", message: "実行環境に接続できません: " + (error?.message || "unknown") });
   }
 }
