@@ -25,3 +25,16 @@ dialog{border:0;border-radius:16px;padding:0;width:min(620px,calc(100vw - 28px))
 .console-panel[hidden]{display:none!important}.console-panel:not([hidden]){display:flex}.controls #console-toggle.active{background:#f1e7fb;border-color:#d7c3ef;color:#6e3bb0}
 #about-dialog{max-height:calc(100vh - 30px);overflow:auto}
 @media(max-width:620px){.controls{width:100%;gap:5px}.controls button,.controls select{padding:7px 8px}}
+
+/* SVG help control and console diagnostics */
+.help-button{display:inline-flex;align-items:center;gap:6px}.help-button svg{width:17px;height:17px;display:block}
+.console-panel pre{flex:1;min-height:0}
+.console-line{display:flex;align-items:flex-start;gap:7px;padding:2px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.console-line-icon{width:14px;height:14px;flex:0 0 14px;margin-top:2px}
+.console-error{color:#ff8294}.console-warn,.console-warning{color:#ffd36e}.console-info{color:#9acbff}.console-summary{height:32px;min-height:32px;display:flex;align-items:center;gap:12px;padding:0 10px;border-top:1px solid #302b33;background:#211e24;color:#cfc5d5;font-size:10px}
+.console-summary-item,.console-details{display:inline-flex;align-items:center;gap:5px;padding:3px 4px;border:0;background:transparent;color:#b8adbf;font-size:10px;border-radius:5px}
+.console-summary-item svg,.console-total svg,.console-details svg{width:15px;height:15px;display:block}
+.console-summary-item.error-summary svg{color:#ff687f}.console-summary-item.warning-summary svg{color:#f6c85f}
+.console-summary-item.has-count{font-weight:800;color:#fff}
+.console-summary-spacer{flex:1}.console-total{display:inline-flex;align-items:center;gap:5px;color:#a99eae}.console-details{color:#ddd4e2}.console-details:hover,.console-summary-item:hover{background:#39323d}
+@media(max-width:620px){.console-summary{gap:7px;padding:0 7px}.console-details span{display:none}.help-button span{display:none}}
