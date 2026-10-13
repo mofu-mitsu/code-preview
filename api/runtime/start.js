@@ -54,7 +54,7 @@ export default async function handler(req, res) {
     const nextProject = !!(packageData.dependencies?.next || packageData.devDependencies?.next || allPaths.some(path => /(^|\/)next\.config\.(js|mjs|ts|cjs)$/i.test(path)));
     const port = 3000;
     const id = "cp-" + randomUUID();
-    sandbox = await Sandbox.create({ name: id, persistent: true, ports: [port], timeout: 2_700_000, resources: { vcpus: 1 }, networkPolicy: "allow-all" });
+    sandbox = await Sandbox.create({ name: id, projectId: process.env.VERCEL_PROJECT_ID, persistent: true, ports: [port], timeout: 2_700_000, resources: { vcpus: 1 }, networkPolicy: "allow-all" });
     await sandbox.writeFiles(safeFiles);
     const script = `#!/usr/bin/env bash
 set +e
