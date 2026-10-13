@@ -26,6 +26,7 @@ export default async function handler(req, res) {
     try { state = JSON.parse(parts[0].trim()); } catch {}
     try { execution = JSON.parse((resultParts[1] || "").trim()); } catch {}
     const payload = { ...state, logs: (resultParts[0] || "").trim().slice(-8000) };
+    if (state.startedAt) payload.elapsedSeconds = Math.max(0, Math.floor(Date.now() / 1000 - Number(state.startedAt)));
     if (execution) payload.result = execution;
     if (state.state === "done") { try { await sandbox.stop(); } catch {} }
     return send(res, 200, payload);
