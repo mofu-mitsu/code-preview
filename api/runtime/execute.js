@@ -62,7 +62,7 @@ export default async function handler(req, res) {
     } else return send(res, 400, { error: "この言語のリモート実行には未対応です: " + language });
 
     const id = "cp-" + randomUUID();
-    sandbox = await Sandbox.create({ name: id, projectId: process.env.VERCEL_PROJECT_ID, persistent: true, timeout: 280_000, resources: { vcpus: 1 }, networkPolicy: "allow-all" });
+    sandbox = await Sandbox.create({ name: id, teamId: process.env.VERCEL_TEAM_ID || "team_q6z73x6vrTY4W6mHF0BjpWwJ", projectId: process.env.VERCEL_PROJECT_ID, token: process.env.VERCEL_TOKEN || req.headers["x-vercel-oidc-token"], persistent: true, timeout: 280_000, resources: { vcpus: 1 }, networkPolicy: "allow-all" });
     await sandbox.writeFiles(safeFiles);
     const script = `#!/usr/bin/env bash
 cd /vercel/sandbox
