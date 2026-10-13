@@ -346,8 +346,22 @@ function escapeHtml(value) {
 }
 let remoteRuntimeId = null;
 let remotePollToken = 0;
+async function stopRemoteRuntime() {
+  const id = remoteRuntimeId;
+  remoteRuntimeId = null;
+  if (!id) return;
+  try {
+    await fetch("/api/runtime/stop", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+  } catch (_) {}
+}
+window.addEventListener("pagehide", () => {
+  if (remoteRuntimeId) {
+    fetch("/api/runtime/stop", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: remoteRuntimeId }), keepalive: true }).catch(() => {});
+  }
+});
 async function runRemoteCode(lang) {
   const token = ++remotePollToken;
+  await stopRemoteRuntime();
   status.textContent = "Starting runtime…";
   setStatus(lang.toUpperCase() + " · 隔離ランタイムを準備中");
   log(lang.toUpperCase() + " を隔離された実行環境で実行しています…", "info");
@@ -395,6 +409,7 @@ async function runRemoteCode(lang) {
 }
 async function runRemoteProject() {
   const token = ++remotePollToken;
+  await stopRemoteRuntime();
   status.textContent = "Starting runtime…";
   setStatus("リモート環境を準備中…");
   frame.srcdoc = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="font:14px system-ui;display:grid;place-items:center;height:100vh;margin:0;background:#fcf9ff;color:#786583"><div>☁️ 隔離ランタイムを起動しています…<br><small>依存関係のインストールには時間がかかる場合があります</small></div></body></html>';
