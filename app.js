@@ -7,7 +7,7 @@ const defaults = {
 };
 const TEXT_EXT = /\.(html?|css|[cm]?js|jsx|tsx?|json|md|txt|svg|xml|ya?ml|toml|php|py|go|rs|rb|sh|sql|vue|svelte)$/i;
 const MIME = {png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",webp:"image/webp",svg:"image/svg+xml",ico:"image/x-icon",woff:"font/woff",woff2:"font/woff2",ttf:"font/ttf",mp3:"audio/mpeg",mp4:"video/mp4"};
-let editor, activePath = "index.html", projectFiles = {}, currentPreview = "", sourceKind = "sample";
+let editor, activePath = "index.html", projectFiles = {}, currentPreview = "", sourceKind = "sample", githubMeta = null, lastGithubUrl = "", consoleFontSize = 11;
 const language = document.getElementById("language");
 const status = document.getElementById("status");
 const consoleEl = document.getElementById("console");
@@ -17,6 +17,19 @@ const projectStatus = document.getElementById("project-status");
 const activeLabel = document.getElementById("active-file-label");
 
 function setStatus(message) { projectStatus.textContent = message; }
+function toast(message, kind = "info") {
+  const region = document.getElementById("toast-region");
+  if (!region) return;
+  const node = document.createElement("div");
+  node.className = "toast toast-" + kind;
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.innerHTML = kind === "error" ? '<path d="M12 3 22 21H2L12 3Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 9v5m0 3h.01" stroke="currentColor" stroke-width="1.8"/>' : '<path d="m5 12 4 4L19 6" fill="none" stroke="currentColor" stroke-width="2"/>';
+  const textNode = document.createElement("span"); textNode.textContent = message;
+  node.append(icon, textNode); region.appendChild(node);
+  requestAnimationFrame(() => node.classList.add("show"));
+  setTimeout(() => { node.classList.remove("show"); setTimeout(() => node.remove(), 250); }, 3200);
+}
 function log(message, type) {
   const line = document.createElement("div");
   line.textContent = (type ? "[" + type + "] " : "") + String(message);
@@ -58,7 +71,7 @@ function openFile(path) {
   renderFileList();
 }
 function setProject(files, label) {
-  projectFiles = files; sourceKind = "project";
+  projectFiles = files; if (sourceKind !== "github") sourceKind = "project";
   const paths = Object.keys(files);
   activePath = paths.includes("index.html") ? "index.html" : paths.find(p => /(^|\/)index\.html?$/i.test(p)) || paths.find(p => /\.(html?)$/i.test(p)) || paths[0] || "index.html";
   if (!projectFiles[activePath]) projectFiles[activePath] = "";
@@ -94,12 +107,27 @@ language.addEventListener("change", () => {
   projectFiles[file] = defaults[lang]; openFile(file); run();
 });
 document.getElementById("run").addEventListener("click", run);
-document.getElementById("refresh").addEventListener("click", run);
+document.getElementById("refresh").addEventListener("click", () => {
+  if (sourceKind === "github" && lastGithubUrl) {
+    if (!confirm("GitHub からファイル一覧と内容を再取得します。エディタ内の変更は破棄されます。続けますか？")) return;
+    document.getElementById("github-url").value = lastGithubUrl;
+    document.getElementById("github-form").requestSubmit();
+  } else run();
+});
 document.getElementById("reset").addEventListener("click", () => {
-  if (sourceKind === "sample") resetSample();
-  else if (confirm("現在の読み込みプロジェクトをサンプルに戻しますか？")) resetSample();
+  if (!confirm("エディタ内の全ファイルを削除します。よろしいですか？")) return;
+  projectFiles = {}; activePath = "index.html"; sourceKind = "empty"; githubMeta = null; lastGithubUrl = ""; currentPreview = "";
+  if (editor) { editor.setValue(""); monaco.editor.setModelLanguage(editor.getModel(), "html"); }
+  activeLabel.textContent = "ファイルなし";
+  fileList.innerHTML = '<div class="empty-files">ファイルはありません。<br>GitHub・ZIP・フォルダから読み込むか、＋ファイルで追加してください。</div>';
+  frame.srcdoc = '<!doctype html><html lang="ja"><body style="font:14px system-ui;color:#9a8da2;display:grid;place-items:center;height:100vh;margin:0"><p>プレビューするファイルがありません</p></body></html>';
+  setStatus("全ファイルを削除しました"); status.textContent = "Empty"; consoleEl.textContent = ""; toast("エディタ内のファイルをすべて削除しました", "success");
 });
 document.getElementById("clear-console").addEventListener("click", () => consoleEl.textContent = "");
+document.getElementById("console-smaller").addEventListener("click", () => { consoleFontSize = Math.max(8, consoleFontSize - 1); consoleEl.style.fontSize = consoleFontSize + "px"; });
+document.getElementById("console-larger").addEventListener("click", () => { consoleFontSize = Math.min(20, consoleFontSize + 1); consoleEl.style.fontSize = consoleFontSize + "px"; });
+document.getElementById("console-height-smaller").addEventListener("click", () => { const panel = document.getElementById("console-panel"); panel.style.height = Math.max(65, panel.getBoundingClientRect().height - 30) + "px"; });
+document.getElementById("console-height-larger").addEventListener("click", () => { const panel = document.getElementById("console-panel"); panel.style.height = Math.min(window.innerHeight * .55, panel.getBoundingClientRect().height + 30) + "px"; });
 document.getElementById("open-new").addEventListener("click", () => {
   if (!currentPreview) return;
   const blob = new Blob([currentPreview], {type:"text/html"});
@@ -117,6 +145,7 @@ document.getElementById("github-form").addEventListener("submit", async event =>
     const meta = await fetch("https://api.github.com/repos/" + owner + "/" + repo);
     if (!meta.ok) throw new Error(meta.status === 404 ? "リポジトリが見つからないか、非公開です。" : "GitHub API error: " + meta.status);
     const repoData = await meta.json(), branch = branchFromUrl || repoData.default_branch;
+    githubMeta = {owner, repo, branch, subdir: subdir.replace(/\/$/,"")}; lastGithubUrl = value; sourceKind = "github";
     const treeRes = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "/git/trees/" + encodeURIComponent(branch) + "?recursive=1");
     if (!treeRes.ok) throw new Error("ファイル一覧を取得できませんでした。ブランチ名を確認してください。");
     const treeData = await treeRes.json();
@@ -136,9 +165,10 @@ document.getElementById("github-form").addEventListener("submit", async event =>
       } catch (_) {}
     }
     if (!Object.keys(files).length) throw new Error("ファイルの内容を取得できませんでした。");
-    setProject(files, owner + "/" + repo + " · " + branch);
+    sourceKind = "github"; setProject(files, owner + "/" + repo + " · " + branch);
+    toast("GitHub から " + Object.keys(files).length + " ファイルを読み込みました", "success");
     if (candidates.length >= 70) log("表示対象は最大70ファイルです。", "info");
-  } catch (error) { setStatus("読み込み失敗"); log(error.message || error, "error"); }
+  } catch (error) { setStatus("読み込み失敗"); log(error.message || error, "error"); toast(error.message || "読み込みに失敗しました", "error"); }
   finally { button.disabled = false; button.textContent = "取り込む"; }
 });
 function blobToDataUrl(blob) {
@@ -146,6 +176,7 @@ function blobToDataUrl(blob) {
 }
 document.getElementById("zip-input").addEventListener("change", async event => {
   const file = event.target.files[0]; if (!file) return;
+  githubMeta = null; sourceKind = "project";
   setStatus("ZIPを展開中…"); consoleEl.textContent = "";
   try {
     const zip = await JSZip.loadAsync(file), entries = Object.values(zip.files).filter(f => !f.dir && !/(^|\/)(node_modules|\.git|dist|build|\.next|coverage)(\/|$)/.test(f.name) && (TEXT_EXT.test(f.name) || /\.(png|jpe?g|gif|webp|ico|woff2?|ttf|mp4|mp3)$/i.test(f.name))).slice(0,100);
@@ -162,6 +193,7 @@ document.getElementById("zip-input").addEventListener("change", async event => {
   event.target.value = "";
 });
 document.getElementById("folder-input").addEventListener("change", async event => {
+  githubMeta = null; sourceKind = "project";
   const picked = Array.from(event.target.files || []).filter(f => f.size < 700000 && (TEXT_EXT.test(f.name) || /\.(png|jpe?g|gif|webp|ico|woff2?|ttf)$/i.test(f.name))).slice(0,100);
   if (!picked.length) return;
   setStatus("フォルダを読み込み中…"); const files = {};
@@ -209,7 +241,27 @@ function resolvePath(from, target) {
   clean.split("/").forEach(p => { if (p === "..") parts.pop(); else if (p && p !== ".") parts.push(p); });
   return parts.join("/");
 }
+function githubRawUrl(path) {
+  if (!githubMeta) return null;
+  const repoPath = [githubMeta.subdir, path].filter(Boolean).join("/");
+  return "https://raw.githubusercontent.com/" + githubMeta.owner + "/" + githubMeta.repo + "/" + encodeURIComponent(githubMeta.branch).replace(/%2F/g,"/") + "/" + repoPath.split("/").map(encodeURIComponent).join("/");
+}
 function rewriteAssets(html, path) {
+  if (githubMeta) {
+    html = html.replace(/<script\b([^>]*?)src=(["'])(.*?)\2([^>]*)><\/script>/gi, (whole, before, quote, target, after) => {
+      const resolved = resolvePath(path, target);
+      if (!resolved || projectFiles[resolved] === undefined) return whole;
+      const raw = githubRawUrl(resolved);
+      return raw ? '<script' + before + 'src=' + quote + raw + quote + after + '></script>' : whole;
+    });
+    html = html.replace(/\b(href|src|poster)=(["'])(.*?)\2/gi, (whole, attr, quote, target) => {
+      const resolved = resolvePath(path, target);
+      if (!resolved || projectFiles[resolved] === undefined) return whole;
+      const raw = githubRawUrl(resolved);
+      return raw ? attr + "=" + quote + raw + quote : whole;
+    });
+    return html;
+  }
   return html.replace(/\b(src|href|poster)=("([^"]*)"|'([^']*)')/gi, (whole, attr, quoted, dquote, squote) => {
     const target = dquote || squote || "", resolved = resolvePath(path,target);
     if (!resolved || projectFiles[resolved] === undefined) return whole;
@@ -236,12 +288,32 @@ function run() {
   const code = projectFiles[activePath] || "", lang = language.value;
   consoleEl.textContent = ""; status.textContent = "Running…";
   try {
+    const paths = Object.keys(projectFiles);
+    const packageFile = paths.find(p => /(^|\/)package\.json$/i.test(p));
+    let packageData = {};
+    if (packageFile) { try { packageData = JSON.parse(projectFiles[packageFile]); } catch (_) {} }
+    const deps = Object.assign({}, packageData.dependencies || {}, packageData.devDependencies || {});
+    const isNext = !!(deps.next || paths.some(p => /(^|\/)next\.config\.(js|mjs|ts|cjs)$/i.test(p)));
+    const scripts = Object.values(packageData.scripts || {}).join(" ");
+    const isBuildApp = isNext || /\b(vite|astro|nuxt|react-scripts|vue-cli-service)\b/.test(scripts);
+    if (isNext) {
+      const stackUrl = githubMeta ? "https://stackblitz.com/github/" + githubMeta.owner + "/" + githubMeta.repo + "/tree/" + encodeURIComponent(githubMeta.branch) + "?embed=1&view=preview" : "";
+      currentPreview = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="font:14px/1.7 system-ui;padding:28px;color:#41364b;background:#fcf9ff"><h2>Next.js プロジェクトを検出しました</h2><p>Next.js は設定ファイルを直接表示するのではなく、依存関係のインストールとビルドを行って起動する必要があります。</p><p>この画面だけでは Next.js のビルドサーバーを起動できません。</p>' + (stackUrl ? '<p><a style="color:#7b4bc4;font-weight:700" href="' + stackUrl + '" target="_blank" rel="noopener">StackBlitz でこの GitHub プロジェクトを起動 ↗</a></p><p style="font-size:12px;color:#84768d">外部サービスで元リポジトリを起動します。Code Preview 内の編集内容は同期されません。</p>' : '<p>公開 GitHub リポジトリを読み込むと、StackBlitz で起動するリンクを利用できます。ZIP などから読み込んだ場合は、プロジェクトを GitHub に置いてから起動してください。</p>') + '</body></html>';
+      frame.srcdoc = currentPreview; status.textContent = "Next.js · Build required"; log("Next.js を検出しました。実行にはビルド環境が必要です。", "info"); return;
+    }
+    if (isBuildApp) {
+      currentPreview = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="font:14px/1.7 system-ui;padding:28px;color:#41364b;background:#fcf9ff"><h2>ビルドが必要なプロジェクトです</h2><p>このプロジェクトは package.json にビルドツール／フレームワークの設定があります。依存関係のインストールと開発サーバーが必要なため、設定ファイルを HTML として表示する代わりにこの案内を表示しています。</p><p>現時点では HTML／CSS／JavaScript の静的プレビューを優先してサポートしています。</p></body></html>';
+      frame.srcdoc = currentPreview; status.textContent = "Build required"; log("このプロジェクトは npm などのビルド環境が必要です。", "info"); return;
+    }
     let html;
-    const entry = Object.keys(projectFiles).find(p => /(^|\/)index\.html?$/i.test(p));
-    if (entry && (activePath !== entry || /\.html?$/i.test(activePath))) html = rewriteAssets(projectFiles[entry],entry);
-    else html = buildPreview(code,lang);
+    const entry = paths.find(p => /(^|\/)index\.html?$/i.test(p));
+    if (entry && (/\.html?$/i.test(activePath) || activePath === entry)) html = rewriteAssets(projectFiles[entry],entry);
+    else if (/\.(php|py|rb|go|rs|c|h|cpp|cc|cxx|cs|java|kt|swift)$/i.test(activePath)) {
+      html = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="font:14px/1.7 system-ui;padding:28px;color:#41364b;background:#fcf9ff"><h2>' + extension(activePath).toUpperCase() + ' ソースファイル</h2><p>この言語のコードは読み込み・編集できますが、実行には対応するランタイム／コンパイラが必要です。現在のブラウザプレビューでは実行していません。</p><p>ソースは左のエディタで確認できます。</p></body></html>';
+      log(extension(activePath).toUpperCase() + " の実行ランタイムは未接続です。ソース表示・編集は可能です。", "info");
+    } else html = buildPreview(code,lang);
     currentPreview = html; frame.srcdoc = html; status.textContent = "Ready";
-  } catch(error) { status.textContent = "Error"; log(error.stack || error.message,"error"); }
+  } catch(error) { status.textContent = "Error"; log(error.stack || error.message,"error"); toast(error.message || "プレビューに失敗しました", "error"); }
 }
 window.addEventListener("message", event => {
   if (!event.data) return;
