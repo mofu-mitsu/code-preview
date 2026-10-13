@@ -398,6 +398,7 @@ function getRuntimeFiles(active) {
 }
 let remoteRuntimeId = null;
 let remotePollToken = 0;
+let lastRuntimeLog = "";
 async function stopRemoteRuntime() {
   const id = remoteRuntimeId;
   remoteRuntimeId = null;
@@ -499,8 +500,11 @@ async function runRemoteProject() {
       const state = await readApiResponse(statusResponse);
       if (state.logs) {
         const logs = state.logs.split("\n").filter(Boolean);
-        const latest = logs.slice(-5).join("\n");
-        if (latest && attempt % 4 === 0) log(latest, "info");
+        const latest = logs.slice(-8).join("\n");
+        if (latest && latest !== lastRuntimeLog && attempt % 2 === 0) {
+          log(latest, "info");
+          lastRuntimeLog = latest;
+        }
       }
       if (state.state === "ready") {
         frame.src = result.previewUrl;
@@ -512,7 +516,8 @@ async function runRemoteProject() {
       }
       if (state.state === "error") throw new Error(state.message + (state.logs ? "\n" + state.logs : ""));
       status.textContent = state.state === "installing" ? "Installing dependencies…" : "Starting server…";
-      setStatus(state.message || "プレビューを起動中…");
+      const elapsed = Number.isFinite(state.elapsedSeconds) ? " · 経過 " + Math.floor(state.elapsedSeconds / 60) + "分" + (state.elapsedSeconds % 60) + "秒" : "";
+      setStatus((state.message || "プレビューを起動中…") + elapsed);
     }
     throw new Error("起動がタイムアウトしました。コンソールのログを確認してください。");
   } catch (error) {
