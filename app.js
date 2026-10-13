@@ -348,8 +348,8 @@ let remoteRuntimeId = null;
 let remotePollToken = 0;
 async function runRemoteCode(lang) {
   const token = ++remotePollToken;
-  status.textContent = "Running remotely…";
-  setStatus(lang.toUpperCase() + " · 隔離ランタイムで実行中");
+  status.textContent = "Starting runtime…";
+  setStatus(lang.toUpperCase() + " · 隔離ランタイムを準備中");
   log(lang.toUpperCase() + " を隔離された実行環境で実行しています…", "info");
   try {
     const response = await fetch("/api/runtime/execute", {
@@ -357,19 +357,33 @@ async function runRemoteCode(lang) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ language: lang, activePath, files: projectFiles })
     });
-    const result = await response.json();
+    const started = await response.json();
     if (token !== remotePollToken) return;
-    if (!response.ok || result.error) throw new Error(result.error || "リモート実行に失敗しました");
-    if (result.stdout) log(result.stdout.replace(/\n$/, ""), "log");
-    if (result.stderr) log(result.stderr.replace(/\n$/, ""), "warn");
-    status.textContent = result.exitCode === 0 ? "Exited 0" : "Exited " + result.exitCode;
-    setStatus(lang.toUpperCase() + " · 終了コード " + result.exitCode);
-    if (lang === "php" && /<(!doctype|html|body|main|div|h[1-6])\b/i.test(result.stdout || "")) {
-      frame.srcdoc = instrumentPreview(result.stdout);
-    } else {
-      frame.srcdoc = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="margin:0;padding:22px;background:#fcf9ff;color:#352b3d;font:13px/1.7 ui-monospace,monospace"><div style="font:700 14px system-ui;margin-bottom:12px">実行結果 · ' + escapeHtml(lang.toUpperCase()) + ' · exit ' + escapeHtml(result.exitCode) + '</div><pre style="white-space:pre-wrap;overflow-wrap:anywhere">' + escapeHtml((result.stdout || "") + (result.stderr ? "\n" + result.stderr : "") || "(出力なし)") + '</pre></body></html>';
+    if (!response.ok || started.error) throw new Error(started.error || "リモート実行を開始できませんでした");
+    for (let attempt = 0; attempt < 140; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (token !== remotePollToken) return;
+      const poll = await fetch("/api/runtime/status?id=" + encodeURIComponent(started.id), { cache: "no-store" });
+      const state = await poll.json();
+      if (state.state === "error") throw new Error(state.message || "実行環境に接続できません");
+      if (state.result) {
+        const result = state.result;
+        if (result.stdout) log(result.stdout.replace(/\n$/, ""), "log");
+        if (result.stderr) log(result.stderr.replace(/\n$/, ""), "warn");
+        status.textContent = result.exitCode === 0 ? "Exited 0" : "Exited " + result.exitCode;
+        setStatus(lang.toUpperCase() + " · 終了コード " + result.exitCode);
+        if (lang === "php" && /<(!doctype|html|body|main|div|h[1-6])\b/i.test(result.stdout || "")) {
+          frame.srcdoc = instrumentPreview(result.stdout);
+        } else {
+          frame.srcdoc = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="margin:0;padding:22px;background:#fcf9ff;color:#352b3d;font:13px/1.7 ui-monospace,monospace"><div style="font:700 14px system-ui;margin-bottom:12px">実行結果 · ' + escapeHtml(lang.toUpperCase()) + ' · exit ' + escapeHtml(result.exitCode) + '</div><pre style="white-space:pre-wrap;overflow-wrap:anywhere">' + escapeHtml((result.stdout || "") + (result.stderr ? "\n" + result.stderr : "") || "(出力なし)") + '</pre></body></html>';
+        }
+        if (result.exitCode !== 0) log("実行が終了コード " + result.exitCode + " で終了しました", "error");
+        return;
+      }
+      status.textContent = "Running remotely…";
+      setStatus(state.message || lang.toUpperCase() + " · 実行中…");
     }
-    if (result.exitCode !== 0) log("実行が終了コード " + result.exitCode + " で終了しました", "error");
+    throw new Error("実行がタイムアウトしました。コンソールを確認してください。");
   } catch (error) {
     if (token !== remotePollToken) return;
     status.textContent = "Runtime error";
