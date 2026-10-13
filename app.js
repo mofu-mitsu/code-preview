@@ -341,6 +341,93 @@ function instrumentPreview(html) {
   const bridge = '<script>(function(){["log","info","warn","error","debug"].forEach(function(level){var original=console[level];console[level]=function(){try{parent.postMessage({type:"preview-log",level:level,message:Array.from(arguments).map(function(v){try{return typeof v==="string"?v:JSON.stringify(v)}catch(_){return String(v)}}).join(" ")},"*")}catch(_){};if(original)original.apply(console,arguments)}});window.addEventListener("error",function(e){parent.postMessage({type:"preview-error",message:e.message+" ("+e.filename+":"+e.lineno+")"},"*")});window.addEventListener("unhandledrejection",function(e){parent.postMessage({type:"preview-error",message:String(e.reason)},"*")})})();<\/script>';
   return /<head[^>]*>/i.test(html) ? html.replace(/<head([^>]*)>/i, "<head$1>" + bridge) : bridge + html;
 }
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+}
+let remoteRuntimeId = null;
+let remotePollToken = 0;
+async function runRemoteCode(lang) {
+  const token = ++remotePollToken;
+  status.textContent = "Running remotely…";
+  setStatus(lang.toUpperCase() + " · 隔離ランタイムで実行中");
+  log(lang.toUpperCase() + " を隔離された実行環境で実行しています…", "info");
+  try {
+    const response = await fetch("/api/runtime/execute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ language: lang, activePath, files: projectFiles })
+    });
+    const result = await response.json();
+    if (token !== remotePollToken) return;
+    if (!response.ok || result.error) throw new Error(result.error || "リモート実行に失敗しました");
+    if (result.stdout) log(result.stdout.replace(/\n$/, ""), "log");
+    if (result.stderr) log(result.stderr.replace(/\n$/, ""), "warn");
+    status.textContent = result.exitCode === 0 ? "Exited 0" : "Exited " + result.exitCode;
+    setStatus(lang.toUpperCase() + " · 終了コード " + result.exitCode);
+    if (lang === "php" && /<(!doctype|html|body|main|div|h[1-6])\b/i.test(result.stdout || "")) {
+      frame.srcdoc = instrumentPreview(result.stdout);
+    } else {
+      frame.srcdoc = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="margin:0;padding:22px;background:#fcf9ff;color:#352b3d;font:13px/1.7 ui-monospace,monospace"><div style="font:700 14px system-ui;margin-bottom:12px">実行結果 · ' + escapeHtml(lang.toUpperCase()) + ' · exit ' + escapeHtml(result.exitCode) + '</div><pre style="white-space:pre-wrap;overflow-wrap:anywhere">' + escapeHtml((result.stdout || "") + (result.stderr ? "\n" + result.stderr : "") || "(出力なし)") + '</pre></body></html>';
+    }
+    if (result.exitCode !== 0) log("実行が終了コード " + result.exitCode + " で終了しました", "error");
+  } catch (error) {
+    if (token !== remotePollToken) return;
+    status.textContent = "Runtime error";
+    setStatus("リモート実行エラー");
+    log(error.message || String(error), "error");
+    frame.srcdoc = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="font:14px/1.8 system-ui;padding:24px;color:#a21c4b;background:#fff7fa"><h2>実行に失敗しました</h2><pre style="white-space:pre-wrap">' + escapeHtml(error.message || String(error)) + '</pre></body></html>';
+    toast("リモート実行に失敗しました", "error");
+  }
+}
+async function runRemoteProject() {
+  const token = ++remotePollToken;
+  status.textContent = "Starting runtime…";
+  setStatus("リモート環境を準備中…");
+  frame.srcdoc = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="font:14px system-ui;display:grid;place-items:center;height:100vh;margin:0;background:#fcf9ff;color:#786583"><div>☁️ 隔離ランタイムを起動しています…<br><small>依存関係のインストールには時間がかかる場合があります</small></div></body></html>';
+  try {
+    const response = await fetch("/api/runtime/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ files: projectFiles })
+    });
+    const result = await response.json();
+    if (token !== remotePollToken) return;
+    if (!response.ok || result.error) throw new Error(result.error || "リモートプレビューを開始できませんでした");
+    remoteRuntimeId = result.id;
+    setStatus("依存関係をインストール中…");
+    log("隔離ランタイムを作成しました。依存関係をインストールしています。", "info");
+    for (let attempt = 0; attempt < 150; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      if (token !== remotePollToken) return;
+      const statusResponse = await fetch("/api/runtime/status?id=" + encodeURIComponent(result.id), { cache: "no-store" });
+      const state = await statusResponse.json();
+      if (state.logs) {
+        const logs = state.logs.split("\n").filter(Boolean);
+        const latest = logs.slice(-5).join("\n");
+        if (latest && attempt % 4 === 0) log(latest, "info");
+      }
+      if (state.state === "ready") {
+        frame.src = result.previewUrl;
+        status.textContent = "Preview ready";
+        setStatus("リモートプレビュー稼働中 · " + new URL(result.previewUrl).host);
+        log("プレビューが起動しました: " + result.previewUrl, "info");
+        toast("リモートプレビューを起動しました", "success");
+        return;
+      }
+      if (state.state === "error") throw new Error(state.message + (state.logs ? "\n" + state.logs : ""));
+      status.textContent = state.state === "installing" ? "Installing dependencies…" : "Starting server…";
+      setStatus(state.message || "プレビューを起動中…");
+    }
+    throw new Error("起動がタイムアウトしました。コンソールのログを確認してください。");
+  } catch (error) {
+    if (token !== remotePollToken) return;
+    status.textContent = "Runtime error";
+    setStatus("リモートプレビューの起動に失敗");
+    log(error.message || String(error), "error");
+    frame.srcdoc = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="font:14px/1.8 system-ui;padding:24px;color:#a21c4b;background:#fff7fa"><h2>プロジェクトを起動できませんでした</h2><pre style="white-space:pre-wrap;overflow-wrap:anywhere">' + escapeHtml(error.message || String(error)) + '</pre><p>コンソールにビルドログがある場合は、最後のエラー行を確認してください。</p></body></html>';
+    toast("プロジェクトの起動に失敗しました", "error");
+  }
+}
 function run() {
   if (!editor) return;
   syncEditor();
@@ -354,22 +441,15 @@ function run() {
     const deps = Object.assign({}, packageData.dependencies || {}, packageData.devDependencies || {});
     const isNext = !!(deps.next || paths.some(p => /(^|\/)next\.config\.(js|mjs|ts|cjs)$/i.test(p)));
     const scripts = Object.values(packageData.scripts || {}).join(" ");
-    const isBuildApp = isNext || /\b(vite|astro|nuxt|react-scripts|vue-cli-service)\b/.test(scripts);
-    if (isNext) {
-      currentPreview = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="font:14px/1.8 system-ui;padding:28px;color:#41364b;background:#fcf9ff"><h2>Next.js プロジェクトを検出しました</h2><p>Next.js は HTML を直接表示するだけでは動かず、Node.js 実行環境で依存関係をインストールし、開発サーバーを起動する必要があります。</p><p>この Code Preview は現在、ブラウザ内の静的プレビューとして動作しているため、Next.js のビルドランタイムはまだ接続されていません。</p><p style="padding:12px 14px;background:#f1e7fb;border-radius:10px">CodeSandbox の起動リンクは、この環境でブロックされるため表示しないようにしました。</p><p>Next.js をこの画面内で実行するには、ブラウザ内 Node.js 環境または隔離されたリモートビルド環境の追加が必要です。設定ファイルを誤って HTML として表示することはせず、ビルドが必要だと明示しています。</p></body></html>';
-      frame.srcdoc = currentPreview; status.textContent = "Next.js · Runtime required"; log("Next.js を検出しました。Node.js 実行環境が未接続のため、まだビルドできません。", "info"); return;
-    }
-    if (isBuildApp) {
-      currentPreview = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="font:14px/1.7 system-ui;padding:28px;color:#41364b;background:#fcf9ff"><h2>ビルドが必要なプロジェクトです</h2><p>このプロジェクトは package.json にビルドツール／フレームワークの設定があります。依存関係のインストールと開発サーバーが必要なため、設定ファイルを HTML として表示する代わりにこの案内を表示しています。</p><p>現時点では HTML／CSS／JavaScript の静的プレビューを優先してサポートしています。</p></body></html>';
-      frame.srcdoc = currentPreview; status.textContent = "Build required"; log("このプロジェクトは npm などのビルド環境が必要です。", "info"); return;
+    const isBuildApp = isNext || /\b(vite|astro|nuxt|react-scripts|vue-cli-service|next)\b/.test(scripts);
+    if (isBuildApp) { runRemoteProject(); return; }
+    if (/\.(php|py|go|rs|c|h|cpp|cc|cxx|rb)$/i.test(activePath) || ["php","python","go","rust","c","cpp","ruby"].includes(lang)) {
+      runRemoteCode(lang); return;
     }
     let html;
     const entry = paths.find(p => /(^|\/)index\.html?$/i.test(p));
     if (entry && !/\.(jsx|tsx)$/i.test(activePath)) html = rewriteAssets(projectFiles[entry],entry);
-    else if (/\.(php|py|rb|go|rs|c|h|cpp|cc|cxx|cs|java|kt|swift)$/i.test(activePath)) {
-      html = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="font:14px/1.7 system-ui;padding:28px;color:#41364b;background:#fcf9ff"><h2>' + extension(activePath).toUpperCase() + ' ソースファイル</h2><p>この言語のコードは読み込み・編集できますが、実行には対応するランタイム／コンパイラが必要です。現在のブラウザプレビューでは実行していません。</p><p>ソースは左のエディタで確認できます。</p></body></html>';
-      log(extension(activePath).toUpperCase() + " の実行ランタイムは未接続です。ソース表示・編集は可能です。", "info");
-    } else html = buildPreview(code,lang);
+    else html = buildPreview(code,lang);
     html = instrumentPreview(html);
     currentPreview = html; frame.srcdoc = html; status.textContent = "Ready";
   } catch(error) { status.textContent = "Error"; log(error.stack || error.message,"error"); toast(error.message || "プレビューに失敗しました", "error"); }
