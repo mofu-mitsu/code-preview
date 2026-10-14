@@ -133,3 +133,11 @@ dialog{border:0;border-radius:16px;padding:0;width:min(620px,calc(100vw - 28px))
   .toast-region{left:10px;right:10px;bottom:12px}
   .toast{max-width:100%;font-size:12px}
 }
+
+/* Native mobile editing textarea supports iOS long-press selection and clipboard actions. */
+#paste-code{user-select:text;-webkit-user-select:text;touch-action:pan-x pan-y;white-space:pre;overflow:auto;tab-size:2}
+@media(max-width:620px){
+  .mobile-edit-button{white-space:normal;line-height:1.2;max-width:90px}
+  #paste-dialog .dialog-card p{font-size:13px;line-height:1.55}
+  #paste-dialog #paste-code{font-size:16px;line-height:1.5;min-height:45vh;-webkit-user-select:text;user-select:text}
+}
