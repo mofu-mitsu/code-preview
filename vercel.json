@@ -30,6 +30,10 @@
   ],
   "rewrites": [
     {
+      "source": "/ogp.png",
+      "destination": "/public/ogp.png"
+    },
+    {
       "source": "/",
       "destination": "/index.html"
     }
