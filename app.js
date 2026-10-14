@@ -399,6 +399,7 @@ function getRuntimeFiles(active) {
 let remoteRuntimeId = null;
 let remotePollToken = 0;
 let lastRuntimeLog = "";
+let lastRuntimeProgress = "";
 async function stopRemoteRuntime() {
   const id = remoteRuntimeId;
   remoteRuntimeId = null;
@@ -462,6 +463,8 @@ async function runRemoteCode(lang) {
 }
 async function runRemoteProject() {
   const token = ++remotePollToken;
+  lastRuntimeLog = "";
+  lastRuntimeProgress = "";
   await stopRemoteRuntime();
   status.textContent = "Starting runtime…";
   setStatus("リモート環境を準備中…");
@@ -516,8 +519,16 @@ async function runRemoteProject() {
       }
       if (state.state === "error") throw new Error(state.message + (state.logs ? "\n" + state.logs : ""));
       status.textContent = state.state === "installing" ? "Installing dependencies…" : "Starting server…";
-      const elapsed = Number.isFinite(state.elapsedSeconds) ? " · 経過 " + Math.floor(state.elapsedSeconds / 60) + "分" + (state.elapsedSeconds % 60) + "秒" : "";
-      setStatus((state.message || "プレビューを起動中…") + elapsed);
+      const seconds = Number.isFinite(state.elapsedSeconds) ? state.elapsedSeconds : null;
+      const elapsed = seconds !== null ? " · 経過 " + Math.floor(seconds / 60) + "分" + (seconds % 60) + "秒" : "";
+      const progressMessage = (state.message || "プレビューを起動中…") + elapsed;
+      setStatus(progressMessage);
+      // ログが増えない依存関係インストール中も、10秒ごとに経過をコンソールへ出す。
+      const progressKey = [state.state, state.stage || "", seconds === null ? "" : Math.floor(seconds / 10)].join(":");
+      if (progressKey !== lastRuntimeProgress) {
+        if (seconds === null || seconds % 10 < 2) log(progressMessage, "info");
+        lastRuntimeProgress = progressKey;
+      }
     }
     throw new Error("起動がタイムアウトしました。コンソールのログを確認してください。");
   } catch (error) {
