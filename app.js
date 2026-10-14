@@ -461,7 +461,7 @@ document.getElementById("file-actions").addEventListener("change", event => {
 });
 document.getElementById("newfolder-create").addEventListener("click", event => {
   event.preventDefault();
-  const path = document.getElementById("newfolder-name").value.trim().replace(/^\\/+|\\/+$/g, "");
+  let path = document.getElementById("newfolder-name").value.trim(); while (path.startsWith("/")) path = path.slice(1); while (path.endsWith("/")) path = path.slice(0, -1);
   if (!path || path.split("/").some(part => !part || part === "." || part === "..")) { toast("フォルダ名を確認してください", "error"); return; }
   if (explicitFolders.has(path) || Object.keys(projectFiles).some(p => p.startsWith(path + "/"))) { toast("同じフォルダがすでに存在します", "error"); return; }
   explicitFolders.add(path); sourceKind = "project"; renderFileList(); setStatus("フォルダを追加しました"); toast("フォルダを追加しました: " + path, "success");
