@@ -400,6 +400,65 @@ document.getElementById("github-form").addEventListener("submit", async event =>
 function blobToDataUrl(blob) {
   return new Promise((resolve,reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(blob); });
 }
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url; link.download = filename; link.style.display = "none";
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+function safeDownloadName(path) {
+  return String(path || "code.txt").split("/").pop().replace(/[\\/:*?"<>|]/g, "_") || "code.txt";
+}
+document.getElementById("export-current").addEventListener("click", () => {
+  try {
+    if (editor) syncEditor();
+    const content = projectFiles[activePath];
+    if (typeof content !== "string") throw new Error("書き出すファイルがありません");
+    if (content.startsWith("data:")) {
+      const match = content.match(/^data:([^;,]+)?(;base64)?,(.*)$/s);
+      if (!match) throw new Error("このファイル形式は書き出せません");
+      const mime = match[1] || "application/octet-stream";
+      const raw = match[2] ? atob(match[3]) : decodeURIComponent(match[3]);
+      const bytes = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+      downloadBlob(new Blob([bytes], {type:mime}), safeDownloadName(activePath));
+    } else {
+      downloadBlob(new Blob([content], {type:"text/plain;charset=utf-8"}), safeDownloadName(activePath));
+    }
+    toast("ファイルを書き出しました: " + safeDownloadName(activePath), "success");
+  } catch (error) { toast(error.message || "ファイルの書き出しに失敗しました", "error"); }
+});
+document.getElementById("export-zip").addEventListener("click", async () => {
+  try {
+    if (editor) syncEditor();
+    const paths = Object.keys(projectFiles).sort((a,b) => a.localeCompare(b));
+    if (!paths.length) throw new Error("ZIPに含めるファイルがありません");
+    const zip = new JSZip();
+    for (const path of paths) {
+      const value = projectFiles[path];
+      if (typeof value !== "string") continue;
+      if (value.startsWith("data:")) {
+        const match = value.match(/^data:([^;,]+)?(;base64)?,(.*)$/s);
+        if (!match) { zip.file(path, value); continue; }
+        const raw = match[2] ? atob(match[3]) : decodeURIComponent(match[3]);
+        const bytes = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+        zip.file(path, bytes);
+      } else {
+        zip.file(path, value);
+      }
+    }
+    for (const folder of explicitFolders) zip.folder(folder);
+    const blob = await zip.generateAsync({type:"blob",compression:"DEFLATE",compressionOptions:{level:6}});
+    const base = (document.getElementById("project-status").textContent || "code-preview")
+      .replace(/^.*?·\s*/, "").replace(/\s*·\s*\d+\s*files?$/i, "").replace(/[^a-z0-9._-]+/gi,"-").replace(/^-+|-+$/g,"") || "code-preview";
+    downloadBlob(blob, base + ".zip");
+    toast("ZIPを書き出しました（" + paths.length + "ファイル）", "success");
+  } catch (error) { toast(error.message || "ZIPの書き出しに失敗しました", "error"); }
+});
+
 document.getElementById("zip-input").addEventListener("change", async event => {
   const file = event.target.files[0]; if (!file) return;
   githubMeta = null; sourceKind = "project";
