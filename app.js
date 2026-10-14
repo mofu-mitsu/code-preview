@@ -198,7 +198,7 @@ function renderFileList() {
   renderNode(tree, fileList);
 }
 function syncEditor() {
-  if (!editor || !projectFiles[activePath]) return;
+  if (!editor || projectFiles[activePath] === undefined) return;
   projectFiles[activePath] = editor.getValue();
 }
 function openFile(path) {
@@ -538,10 +538,27 @@ document.getElementById("paste-open").addEventListener("click", () => {
 });
 document.getElementById("paste-load").addEventListener("click", event => {
   event.preventDefault();
-  const path = document.getElementById("paste-filename").value.trim().replace(/^\/+/,"") || "index.html";
+  const path = document.getElementById("paste-filename").value.trim().replace(/^\\/+/, "") || "index.html";
   const code = document.getElementById("paste-code").value;
-  projectFiles[path] = code; sourceKind = "project"; openFile(path); setStatus("貼り付けコード"); run();
+
+  // Persist the editor buffer before applying the mobile textarea contents.
+  // openFile() syncs the old Monaco buffer, which could overwrite these edits.
+  syncEditor();
+  projectFiles[path] = code;
+  sourceKind = "project";
+
+  if (path === activePath) {
+    if (editor) editor.setValue(code);
+    activeLabel.textContent = path;
+    renderFileList();
+  } else {
+    openFile(path);
+  }
+
+  setStatus("モバイル編集を反映しました");
   document.getElementById("paste-dialog").close();
+  run();
+  toast("編集内容を反映しました", "success");
 });
 document.getElementById("file-actions").addEventListener("change", event => {
   const action = event.target.value; event.target.value = "";
