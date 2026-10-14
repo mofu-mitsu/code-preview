@@ -15,7 +15,7 @@ const defaults = {
 };
 const TEXT_EXT = /\.(html?|css|[cm]?js|jsx|tsx?|json|md|txt|svg|xml|ya?ml|toml|php|py|go|rs|rb|sh|sql|vue|svelte|c|h|hpp|cc|cpp|cxx|cs|java|kt|swift|dart|lua|r|pl|ex|exs|scala|clj)$/i;
 const MIME = {png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",webp:"image/webp",svg:"image/svg+xml",ico:"image/x-icon",woff:"font/woff",woff2:"font/woff2",ttf:"font/ttf",mp3:"audio/mpeg",mp4:"video/mp4"};
-let editor, activePath = "index.html", projectFiles = {}, currentPreview = "", sourceKind = "sample", githubMeta = null, lastGithubUrl = "", consoleFontSize = 11;
+let editor, activePath = "index.html", projectFiles = {}, explicitFolders = new Set(), collapsedFolders = new Set(), currentPreview = "", sourceKind = "sample", githubMeta = null, lastGithubUrl = "", consoleFontSize = 11;
 const consoleCounts = {error:0, warn:0, info:0, log:0};
 const language = document.getElementById("language");
 const status = document.getElementById("status");
@@ -112,19 +112,66 @@ function editorLanguage(path) {
 }
 function renderFileList() {
   fileList.textContent = "";
-  const paths = Object.keys(projectFiles).sort((a,b) => {
-    const ai = a.toLowerCase().endsWith("index.html") ? 0 : 1, bi = b.toLowerCase().endsWith("index.html") ? 0 : 1;
-    return ai - bi || a.localeCompare(b);
-  });
-  if (!paths.length) { fileList.innerHTML = '<div class="empty-files">ファイルがありません。<br>GitHub・ZIP・フォルダから読み込むか、＋ファイルで追加できます。</div>'; return; }
+  const paths = Object.keys(projectFiles).sort((a,b) => a.localeCompare(b));
+  const tree = { folders: new Map(), files: [] };
+  const allFolders = new Set(explicitFolders);
   paths.forEach(path => {
-    const button = document.createElement("button");
-    button.className = "file-item" + (path === activePath ? " active" : "");
-    button.title = path;
-    const icon = document.createElement("span"); icon.className = "file-icon"; icon.textContent = ({html:"<>",css:"#",js:"JS",jsx:"⚛",tsx:"TS",json:"{}",png:"▧",jpg:"▧",svg:"◇",php:"PHP",go:"GO",rs:"RS"})[extension(path)] || "·";
-    const name = document.createElement("span"); name.className = "file-name"; name.textContent = path;
-    button.append(icon,name); button.addEventListener("click", () => openFile(path)); fileList.appendChild(button);
+    const parts = path.split("/"); let node = tree;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const folderPath = parts.slice(0, i + 1).join("/"); allFolders.add(folderPath);
+      if (!node.folders.has(parts[i])) node.folders.set(parts[i], { folders: new Map(), files: [], path: folderPath });
+      node = node.folders.get(parts[i]);
+    }
+    node.files.push(path);
   });
+  allFolders.forEach(folderPath => {
+    let node = tree; const parts = folderPath.split("/");
+    parts.forEach((part, i) => {
+      const p = parts.slice(0, i + 1).join("/");
+      if (!node.folders.has(part)) node.folders.set(part, { folders: new Map(), files: [], path: p });
+      node = node.folders.get(part);
+    });
+  });
+  function renderNode(node, container, depth = 0) {
+    [...node.folders.entries()].sort((a,b)=>a[0].localeCompare(b[0])).forEach(([name, folder]) => {
+      const row = document.createElement("div"); row.className = "folder-row"; row.style.paddingLeft = (6 + depth * 12) + "px";
+      const toggle = document.createElement("button"); toggle.type = "button"; toggle.className = "folder-toggle";
+      toggle.textContent = (collapsedFolders.has(folder.path) ? "▸ " : "▾ ") + "📁 " + name; toggle.title = folder.path;
+      toggle.addEventListener("click", () => { if (collapsedFolders.has(folder.path)) collapsedFolders.delete(folder.path); else collapsedFolders.add(folder.path); renderFileList(); });
+      const remove = document.createElement("button"); remove.type = "button"; remove.className = "file-delete"; remove.textContent = "×"; remove.title = "フォルダと中のファイルを削除";
+      remove.addEventListener("click", event => {
+        event.stopPropagation();
+        const count = Object.keys(projectFiles).filter(p => p.startsWith(folder.path + "/")).length;
+        if (!confirm("フォルダ「" + folder.path + "」" + (count ? "と中の " + count + " ファイル" : "") + "を削除しますか？")) return;
+        syncEditor();
+        Object.keys(projectFiles).filter(p => p.startsWith(folder.path + "/")).forEach(p => delete projectFiles[p]);
+        [...explicitFolders].filter(p => p === folder.path || p.startsWith(folder.path + "/")).forEach(p => explicitFolders.delete(p));
+        [...collapsedFolders].filter(p => p === folder.path || p.startsWith(folder.path + "/")).forEach(p => collapsedFolders.delete(p));
+        if (!projectFiles[activePath]) { activePath = Object.keys(projectFiles)[0] || "index.html"; if (projectFiles[activePath] === undefined) projectFiles[activePath] = ""; if (editor) { editor.setValue(projectFiles[activePath]); monaco.editor.setModelLanguage(editor.getModel(), editorLanguage(activePath)); } activeLabel.textContent = activePath; }
+        renderFileList(); setStatus("フォルダを削除しました"); run();
+      });
+      row.append(toggle, remove); container.appendChild(row);
+      if (!collapsedFolders.has(folder.path)) renderNode(folder, container, depth + 1);
+    });
+    node.files.sort((a,b)=>a.localeCompare(b)).forEach(path => {
+      const row = document.createElement("div"); row.className = "file-row"; row.style.paddingLeft = (8 + depth * 12) + "px";
+      const button = document.createElement("button"); button.type = "button"; button.className = "file-item" + (path === activePath ? " active" : ""); button.title = path;
+      const icon = document.createElement("span"); icon.className = "file-icon"; icon.textContent = ({html:"<>",css:"#",js:"JS",jsx:"⚛",tsx:"TS",json:"{}",png:"▧",jpg:"▧",svg:"◇",php:"PHP",go:"GO",rs:"RS"})[extension(path)] || "·";
+      const name = document.createElement("span"); name.className = "file-name"; name.textContent = path.split("/").pop();
+      button.append(icon,name); button.addEventListener("click", () => openFile(path));
+      const remove = document.createElement("button"); remove.type = "button"; remove.className = "file-delete"; remove.textContent = "×"; remove.title = "ファイルを削除";
+      remove.addEventListener("click", event => {
+        event.stopPropagation();
+        if (!confirm("ファイル「" + path + "」を削除しますか？")) return;
+        syncEditor(); delete projectFiles[path];
+        if (activePath === path) { activePath = Object.keys(projectFiles)[0] || "index.html"; if (projectFiles[activePath] === undefined) projectFiles[activePath] = ""; if (editor) { editor.setValue(projectFiles[activePath]); monaco.editor.setModelLanguage(editor.getModel(), editorLanguage(activePath)); } activeLabel.textContent = activePath; }
+        renderFileList(); setStatus("ファイルを削除しました"); run();
+      });
+      row.append(button,remove); container.appendChild(row);
+    });
+  }
+  if (!paths.length && !explicitFolders.size) { fileList.innerHTML = '<div class="empty-files">ファイルがありません。<br>GitHub・ZIP・フォルダから読み込むか、＋ 追加から作成できます。</div>'; return; }
+  renderNode(tree, fileList);
 }
 function syncEditor() {
   if (!editor || !projectFiles[activePath]) return;
@@ -141,7 +188,7 @@ function openFile(path) {
   renderFileList();
 }
 function setProject(files, label) {
-  projectFiles = files; if (sourceKind !== "github") sourceKind = "project";
+  projectFiles = files; explicitFolders = new Set(); collapsedFolders = new Set(); hideImportProgress(); if (sourceKind !== "github") sourceKind = "project";
   const paths = Object.keys(files);
   activePath = paths.includes("index.html") ? "index.html" : paths.find(p => /(^|\/)index\.html?$/i.test(p)) || paths.find(p => /\.(html?)$/i.test(p)) || paths[0] || "index.html";
   if (!projectFiles[activePath]) projectFiles[activePath] = "";
@@ -152,6 +199,22 @@ function setProject(files, label) {
   activeLabel.textContent = activePath;
   renderFileList(); setStatus(label + " · " + Object.keys(projectFiles).length + " files");
   run();
+}
+function showImportProgress(total = 0, current = 0, path = "") {
+  const panel = document.getElementById("preview-import-progress");
+  if (!panel) return;
+  panel.hidden = false;
+  const label = document.getElementById("preview-import-label");
+  const count = document.getElementById("preview-import-count");
+  const bar = document.getElementById("preview-import-bar");
+  const percent = total ? Math.round(current / total * 100) : 0;
+  label.textContent = total ? "GitHub ファイル取得中" + (path ? " · " + path : "") : "GitHub のファイル一覧を確認中…";
+  count.textContent = total ? current + " / " + total + " 件 · " + percent + "%" : "準備中…";
+  bar.style.width = percent + "%";
+}
+function hideImportProgress() {
+  const panel = document.getElementById("preview-import-progress");
+  if (panel) panel.hidden = true;
 }
 function resetSample() {
   setProject({"index.html":defaults.html,"style.css":defaults.css,"app.js":defaults.javascript}, "サンプル");
@@ -261,7 +324,7 @@ document.getElementById("github-form").addEventListener("submit", async event =>
   if (!match) { log("公開GitHubリポジトリのURLを入力してください。", "error"); return; }
   const owner = match[1], repo = match[2].replace(/\.git$/,""), branchFromUrl = match[3], subdir = match[4] || "";
   const button = document.getElementById("import-github"); button.disabled = true; button.textContent = "読み込み中…";
-  setStatus("GitHubを読み込み中…"); clearConsole();
+  setStatus("GitHubを読み込み中…"); clearConsole(); showImportProgress();
   try {
     const meta = await fetch("https://api.github.com/repos/" + owner + "/" + repo);
     if (!meta.ok) throw new Error(meta.status === 404 ? "リポジトリが見つからないか、非公開です。" : "GitHub API error: " + meta.status);
@@ -292,7 +355,7 @@ document.getElementById("github-form").addEventListener("submit", async event =>
     const files = {};
     for (let i=0;i<candidates.length;i++) {
       const item = candidates[i], path = subdir ? item.path.slice(subdir.length).replace(/^\//,"") : item.path;
-      setStatus("取得中 " + (i+1) + "/" + candidates.length);
+      setStatus("取得中 " + (i+1) + "/" + candidates.length + " · " + Math.round((i+1)/candidates.length*100) + "%"); showImportProgress(candidates.length, i+1, path);
       try {
         const response = await fetch("https://cdn.jsdelivr.net/gh/" + owner + "/" + repo + "@" + branch + "/" + item.path.split("/").map(encodeURIComponent).join("/"));
         if (!response.ok) continue;
@@ -305,7 +368,7 @@ document.getElementById("github-form").addEventListener("submit", async event =>
     sourceKind = "github"; setProject(files, owner + "/" + repo + " · " + branch);
     toast("GitHub から " + Object.keys(files).length + " ファイルを読み込みました", "success");
     if (candidates.length >= 200) log("表示対象は最大200ファイルです。依存ファイルが不足する場合は、不要なファイルを除外するか必要なソースを個別に追加してください。", "info");
-  } catch (error) { setStatus("読み込み失敗"); log(error.message || error, "error"); toast(error.message || "読み込みに失敗しました", "error"); }
+  } catch (error) { hideImportProgress(); setStatus("読み込み失敗"); log(error.message || error, "error"); toast(error.message || "読み込みに失敗しました", "error"); }
   finally { button.disabled = false; button.textContent = "取り込む"; }
 });
 function blobToDataUrl(blob) {
@@ -316,7 +379,7 @@ document.getElementById("zip-input").addEventListener("change", async event => {
   githubMeta = null; sourceKind = "project";
   setStatus("ZIPを展開中…"); clearConsole();
   try {
-    const zip = await JSZip.loadAsync(file), entries = Object.values(zip.files).filter(f => !f.dir && !/(^|\/)(node_modules|\.git|dist|build|\.next|coverage)(\/|$)/.test(f.name) && (TEXT_EXT.test(f.name) || /\.(png|jpe?g|gif|webp|ico|woff2?|ttf|mp4|mp3)$/i.test(f.name))).slice(0,100);
+    const zip = await JSZip.loadAsync(file), entries = Object.values(zip.files).filter(f => !f.dir && !/(^|\/)(node_modules|\.git|dist|build|\.next|coverage)(\/|$)/.test(f.name) && (TEXT_EXT.test(f.name) || /\.(png|jpe?g|gif|webp|ico|woff2?|ttf|mp4|mp3)$/i.test(f.name))).slice(0,200);
     const files = {};
     for (const entry of entries) {
       const path = entry.name.replace(/^([^/]+\/)(?=(index\.html|src\/|public\/|assets\/))/i,"");
@@ -331,7 +394,7 @@ document.getElementById("zip-input").addEventListener("change", async event => {
 });
 document.getElementById("folder-input").addEventListener("change", async event => {
   githubMeta = null; sourceKind = "project";
-  const picked = Array.from(event.target.files || []).filter(f => f.size < 700000 && (TEXT_EXT.test(f.name) || /\.(png|jpe?g|gif|webp|ico|woff2?|ttf)$/i.test(f.name))).slice(0,100);
+  const picked = Array.from(event.target.files || []).filter(f => f.size < 700000 && (TEXT_EXT.test(f.name) || /\.(png|jpe?g|gif|webp|ico|woff2?|ttf)$/i.test(f.name))).slice(0,200);
   if (!picked.length) return;
   setStatus("フォルダを読み込み中…"); const files = {};
   for (const file of picked) {
@@ -362,7 +425,17 @@ document.getElementById("paste-load").addEventListener("click", event => {
   projectFiles[path] = code; sourceKind = "project"; openFile(path); setStatus("貼り付けコード"); run();
   document.getElementById("paste-dialog").close();
 });
-document.getElementById("new-file").addEventListener("click", () => document.getElementById("newfile-dialog").showModal());
+document.getElementById("file-actions").addEventListener("change", event => {
+  const action = event.target.value; event.target.value = "";
+  if (action === "file") document.getElementById("newfile-dialog").showModal();
+  if (action === "folder") {
+    const path = prompt("作成するフォルダ名（例: src/components）");
+    if (!path) return;
+    const clean = path.trim().replace(/^\\/+|\\/+$/g, "");
+    if (!clean || clean.split("/").some(part => !part || part === "." || part === "..")) { toast("フォルダ名を確認してください", "error"); return; }
+    explicitFolders.add(clean); sourceKind = "project"; renderFileList(); setStatus("フォルダを追加しました"); toast("フォルダを追加しました: " + clean, "success");
+  }
+});
 document.getElementById("newfile-create").addEventListener("click", event => {
   event.preventDefault(); const path = document.getElementById("newfile-name").value.trim().replace(/^\/+/,"");
   if (!path) return;
