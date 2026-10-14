@@ -69,7 +69,37 @@ function log(message, type) {
   else icon.innerHTML = '<path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
   icon.classList.add("console-line-icon");
   const text = document.createElement("span");
-  text.textContent = (type ? "[" + type + "] " : "") + String(message);
+  const displayMessage = (type ? "[" + type + "] " : "") + String(message);
+  const urlPattern = /https:\/\/[^\s<>"']+/g;
+  let cursor = 0, match;
+  while ((match = urlPattern.exec(displayMessage)) !== null) {
+    let urlText = match[0];
+    let trailing = "";
+    while (/[),.!?;:]$/.test(urlText)) {
+      trailing = urlText.slice(-1) + trailing;
+      urlText = urlText.slice(0, -1);
+    }
+    if (match.index > cursor) text.appendChild(document.createTextNode(displayMessage.slice(cursor, match.index)));
+    try {
+      const parsed = new URL(urlText);
+      if (parsed.protocol === "https:") {
+        const anchor = document.createElement("a");
+        anchor.href = parsed.href;
+        anchor.target = "_blank";
+        anchor.rel = "noopener noreferrer";
+        anchor.textContent = urlText;
+        anchor.className = "console-link";
+        text.appendChild(anchor);
+      } else {
+        text.appendChild(document.createTextNode(urlText));
+      }
+    } catch (_) {
+      text.appendChild(document.createTextNode(urlText));
+    }
+    text.appendChild(document.createTextNode(trailing));
+    cursor = match.index + match[0].length;
+  }
+  if (cursor < displayMessage.length) text.appendChild(document.createTextNode(displayMessage.slice(cursor)));
   line.append(icon, text);
   consoleEl.appendChild(line);
   consoleEl.scrollTop = consoleEl.scrollHeight;
@@ -520,6 +550,8 @@ async function runRemoteProject() {
   await stopRemoteRuntime();
   status.textContent = "Starting runtime…";
   setStatus("リモート環境を準備中…");
+  const readyBanner = document.getElementById("preview-ready-banner");
+  if (readyBanner) readyBanner.hidden = true;
   frame.srcdoc = '<!doctype html><html lang="ja"><meta charset="utf-8"><body style="font:14px system-ui;display:grid;place-items:center;height:100vh;margin:0;background:#fcf9ff;color:#786583"><div>☁️ 隔離ランタイムを起動しています…<br><small>依存関係のインストールには時間がかかる場合があります</small></div></body></html>';
   try {
     const runtimeFiles = getRuntimeProjectFiles();
@@ -571,6 +603,11 @@ async function runRemoteProject() {
         frame.src = result.previewUrl;
         status.textContent = "Preview ready";
         setStatus("リモートプレビュー稼働中 · " + new URL(result.previewUrl).host);
+        const readyLink = document.getElementById("preview-ready-link");
+        const readyMessage = document.getElementById("preview-ready-message");
+        if (readyLink) { readyLink.href = result.previewUrl; readyLink.textContent = result.previewUrl; }
+        if (readyMessage) readyMessage.textContent = "プレビューが完成しました";
+        if (readyBanner) readyBanner.hidden = false;
         log("プレビューが起動しました: " + result.previewUrl, "info");
         toast("リモートプレビューを起動しました", "success");
         return;
