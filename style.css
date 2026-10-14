@@ -77,3 +77,12 @@ dialog{border:0;border-radius:16px;padding:0;width:min(620px,calc(100vw - 28px))
 .preview-import-bar{height:100%;width:0;background:linear-gradient(90deg,#b58be8,#8050bd);border-radius:99px;transition:width .12s ease}
 .preview-import-progress p{margin:7px 0 0;color:#9887a5;font-size:10px}
 @media(max-width:620px){.file-actions{max-width:90px;font-size:9px}.preview-import-progress{padding:10px}}
+
+/* SVG editor history controls + consistent native dialog replacements */
+.icon-button{display:inline-grid;place-items:center;width:34px;height:34px;padding:7px;border-radius:9px;color:#75518e}
+.icon-button svg{width:18px;height:18px;display:block}
+.icon-button:hover{background:#f0e6fa;color:#6d3db7}
+.small-dialog{width:min(440px,calc(100vw - 28px))}
+#confirm-dialog-message{line-height:1.7;overflow-wrap:anywhere;white-space:pre-wrap}
+#newfolder-name,#newfile-name{width:100%}
+@media(max-width:620px){.icon-button{width:32px;height:32px;padding:6px}}
