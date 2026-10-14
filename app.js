@@ -257,7 +257,7 @@ document.getElementById("github-form").addEventListener("submit", async event =>
         };
         return priority(a.path) - priority(b.path) || a.path.localeCompare(b.path);
       })
-      .slice(0, 100);
+      .slice(0, 200);
     if (!candidates.length) throw new Error("取り込めるファイルが見つかりませんでした。");
     const files = {};
     for (let i=0;i<candidates.length;i++) {
@@ -274,7 +274,7 @@ document.getElementById("github-form").addEventListener("submit", async event =>
     if (!Object.keys(files).length) throw new Error("ファイルの内容を取得できませんでした。");
     sourceKind = "github"; setProject(files, owner + "/" + repo + " · " + branch);
     toast("GitHub から " + Object.keys(files).length + " ファイルを読み込みました", "success");
-    if (candidates.length >= 100) log("表示対象は最大100ファイルです。依存ファイルが不足する場合は、不要なファイルを除外するか必要なソースを個別に追加してください。", "info");
+    if (candidates.length >= 200) log("表示対象は最大200ファイルです。依存ファイルが不足する場合は、不要なファイルを除外するか必要なソースを個別に追加してください。", "info");
   } catch (error) { setStatus("読み込み失敗"); log(error.message || error, "error"); toast(error.message || "読み込みに失敗しました", "error"); }
   finally { button.disabled = false; button.textContent = "取り込む"; }
 });
