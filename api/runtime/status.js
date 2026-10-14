@@ -10,7 +10,7 @@ function send(res, status, body) {
 export default async function handler(req, res) {
   if (req.method !== "GET") return send(res, 405, { error: "GET only" });
   const id = String(req.query?.id || "");
-  if (!/^cp-[0-9a-f-]{36}$/.test(id)) return send(res, 400, { error: "不正なセッションIDです" });
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id)) return send(res, 400, { error: "不正なセッションIDです" });
   try {
     const sandbox = await Sandbox.get({ name: id });
     const result = await sandbox.runCommand({
