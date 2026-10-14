@@ -38,3 +38,9 @@ dialog{border:0;border-radius:16px;padding:0;width:min(620px,calc(100vw - 28px))
 .console-summary-item.has-count{font-weight:800;color:#fff}
 .console-summary-spacer{flex:1}.console-total{display:inline-flex;align-items:center;gap:5px;color:#a99eae}.console-details{color:#ddd4e2}.console-details:hover,.console-summary-item:hover{background:#39323d}
 @media(max-width:620px){.console-summary{gap:7px;padding:0 7px}.console-details span{display:none}.help-button span{display:none}}
+
+/* Draggable console height */
+.console-resizer{height:9px;min-height:9px;flex:0 0 9px;cursor:row-resize;display:flex;align-items:center;justify-content:center;background:#f4eef8;border-top:1px solid #e2d6eb;border-bottom:1px solid #e2d6eb;touch-action:none;user-select:none;position:relative;z-index:2}
+.console-resizer::after{content:"";width:42px;height:3px;border-radius:4px;background:#b7a3c8;box-shadow:0 0 0 1px #b7a3c820}
+.console-resizer:hover,.console-resizer:focus-visible{background:#eadcf5;outline:2px solid #b68ce0;outline-offset:-2px}
+.console-resizer[hidden]{display:none!important}
