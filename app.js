@@ -170,6 +170,7 @@ const consolePanel = document.getElementById("console-panel");
 document.getElementById("console-toggle").addEventListener("click", () => {
   const willOpen = consolePanel.hidden;
   consolePanel.hidden = !willOpen;
+  document.getElementById("console-resizer").hidden = !willOpen;
   document.getElementById("console-toggle").setAttribute("aria-expanded", String(willOpen));
   document.getElementById("console-toggle").classList.toggle("active", willOpen);
 });
@@ -178,9 +179,44 @@ document.getElementById("about-open").addEventListener("click", () => aboutDialo
 aboutDialog.addEventListener("click", event => { if (event.target === aboutDialog) aboutDialog.close(); });
 document.getElementById("about-close").addEventListener("click", () => aboutDialog.close());
 document.getElementById("clear-console").addEventListener("click", clearConsole);
-document.getElementById("console-details").addEventListener("click", () => { consolePanel.hidden = false; document.getElementById("console-toggle").setAttribute("aria-expanded", "true"); document.getElementById("console-toggle").classList.add("active"); consoleEl.scrollTop = consoleEl.scrollHeight; });
+document.getElementById("console-details").addEventListener("click", () => { consolePanel.hidden = false; document.getElementById("console-resizer").hidden = false; document.getElementById("console-toggle").setAttribute("aria-expanded", "true"); document.getElementById("console-toggle").classList.add("active"); consoleEl.scrollTop = consoleEl.scrollHeight; });
 document.getElementById("console-smaller").addEventListener("click", () => { consoleFontSize = Math.max(8, consoleFontSize - 1); consoleEl.style.fontSize = consoleFontSize + "px"; });
 document.getElementById("console-larger").addEventListener("click", () => { consoleFontSize = Math.min(20, consoleFontSize + 1); consoleEl.style.fontSize = consoleFontSize + "px"; });
+
+const consoleResizer = document.getElementById("console-resizer");
+function setConsoleHeight(height) {
+  const min = 90;
+  const max = Math.max(min, Math.floor(window.innerHeight * 0.65));
+  const value = Math.max(min, Math.min(max, Math.round(height)));
+  consolePanel.style.height = value + "px";
+  consoleResizer.setAttribute("aria-valuenow", String(value));
+}
+consoleResizer.addEventListener("pointerdown", event => {
+  if (event.button !== 0 && event.pointerType === "mouse") return;
+  event.preventDefault();
+  const startY = event.clientY;
+  const startHeight = consolePanel.getBoundingClientRect().height;
+  consoleResizer.setPointerCapture(event.pointerId);
+  const move = e => setConsoleHeight(startHeight + startY - e.clientY);
+  const end = () => {
+    consoleResizer.removeEventListener("pointermove", move);
+    consoleResizer.removeEventListener("pointerup", end);
+    consoleResizer.removeEventListener("pointercancel", end);
+  };
+  consoleResizer.addEventListener("pointermove", move);
+  consoleResizer.addEventListener("pointerup", end);
+  consoleResizer.addEventListener("pointercancel", end);
+});
+consoleResizer.addEventListener("keydown", event => {
+  if (event.key === "ArrowUp") { event.preventDefault(); setConsoleHeight(consolePanel.getBoundingClientRect().height + 24); }
+  if (event.key === "ArrowDown") { event.preventDefault(); setConsoleHeight(consolePanel.getBoundingClientRect().height - 24); }
+  if (event.key === "Home") { event.preventDefault(); setConsoleHeight(90); }
+  if (event.key === "End") { event.preventDefault(); setConsoleHeight(window.innerHeight * 0.65); }
+});
+window.addEventListener("resize", () => {
+  if (!consolePanel.hidden && consolePanel.style.height) setConsoleHeight(parseFloat(consolePanel.style.height));
+});
+
 document.getElementById("console-height-smaller").addEventListener("click", () => { const panel = document.getElementById("console-panel"); panel.style.height = Math.max(65, panel.getBoundingClientRect().height - 30) + "px"; });
 document.getElementById("console-height-larger").addEventListener("click", () => { const panel = document.getElementById("console-panel"); panel.style.height = Math.min(window.innerHeight * .55, panel.getBoundingClientRect().height + 30) + "px"; });
 document.getElementById("open-new").addEventListener("click", () => {
