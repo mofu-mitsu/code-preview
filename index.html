@@ -51,7 +51,7 @@
     <label class="file-button">フォルダを読み込む<input id="folder-input" type="file" webkitdirectory multiple /></label>
     <button id="paste-open" type="button">コードを貼り付け</button>
     <a class="tool-link" href="https://mofu-mitsu.github.io/code-mirror/" target="_blank" rel="noopener noreferrer">Code Miller ↗</a>
-    <span id="project-status" role="status">サンプルプロジェクト</span>
+    <div class="export-actions" aria-label="エクスポート"><button id="export-current" type="button" title="現在のファイルをダウンロード">ファイルを書き出す</button><button id="export-zip" type="button" class="primary" title="プロジェクト全体をZIPでダウンロード">ZIPを書き出す</button></div><span id="project-status" role="status">サンプルプロジェクト</span>
   </section>
   <main class="workspace">
     <aside class="files-panel panel"><div class="panel-head"><span>PROJECT FILES</span><select id="file-actions" class="mini file-actions" aria-label="ファイル操作"><option value="">＋ 追加 ▾</option><option value="file">ファイルを追加</option><option value="folder">フォルダを追加</option></select></div><div id="file-list" class="file-list"></div></aside>
