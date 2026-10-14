@@ -59,7 +59,7 @@ export default async function handler(req, res) {
     await sandbox.writeFiles(safeFiles);
     const script = `#!/usr/bin/env bash
 set +e
-cd /vercel/sandbox
+cd /vercel
 STARTED_AT=$(date +%s)
 printf '{"state":"installing","stage":"install","startedAt":%s,"message":"依存関係をインストールしています"}' "$STARTED_AT" > .code-preview-status.json
 if [ -f package-lock.json ]; then
@@ -96,7 +96,7 @@ printf '{"state":"error","stage":"server","startedAt":%s,"message":"起動がタ
 exit 1
 `;
     await sandbox.writeFiles([{ path: ".code-preview-start.sh", content: Buffer.from(script), mode: 0o755 }]);
-    await sandbox.runCommand({ cmd: "bash", args: ["/vercel/sandbox/.code-preview-start.sh"], cwd: "/vercel/sandbox", detached: true });
+    await sandbox.runCommand({ cmd: "bash", args: ["/vercel/.code-preview-start.sh"], cwd: "/vercel", detached: true });
     return send(res, 200, { id: runtimeId, previewUrl: sandbox.domain(port), state: "installing", message: "依存関係をインストールしています" });
   } catch (error) {
     if (sandbox) { try { await sandbox.stop(); } catch {} }
