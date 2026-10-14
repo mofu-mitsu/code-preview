@@ -580,3 +580,21 @@ window.addEventListener("message", event => {
   if (event.data.type === "preview-error") { status.textContent = "Preview error"; log(event.data.message,"error"); }
   if (event.data.type === "preview-log") log(event.data.message, event.data.level);
 });
+
+
+// Copy all visible console output for sharing/debugging.
+document.getElementById("copy-console")?.addEventListener("click", async () => {
+  const text = Array.from(consoleEl.children).map(line => line.innerText || line.textContent || "").join("\n");
+  if (!text) { toast("コピーするログがありません", "info"); return; }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("コンソールをコピーしました", "success");
+  } catch (_) {
+    const field = document.createElement("textarea");
+    field.value = text; field.setAttribute("readonly", "");
+    field.style.position = "fixed"; field.style.opacity = "0";
+    document.body.appendChild(field); field.select();
+    const copied = document.execCommand("copy"); field.remove();
+    toast(copied ? "コンソールをコピーしました" : "コピーできませんでした。ログを選択してコピーしてください", copied ? "success" : "error");
+  }
+});
