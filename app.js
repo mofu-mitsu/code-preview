@@ -439,6 +439,39 @@ function stripCommonRoot(files) {
   }
   return files;
 }
+async function copyCurrentCode() {
+  if (editor) syncEditor();
+  const text = projectFiles[activePath] ?? "";
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const field = document.createElement("textarea");
+      field.value = text; field.setAttribute("readonly", "");
+      field.style.position = "fixed"; field.style.opacity = "0"; field.style.fontSize = "16px";
+      document.body.appendChild(field); field.focus(); field.select(); field.setSelectionRange(0, field.value.length);
+      const ok = document.execCommand("copy"); field.remove();
+      if (!ok) throw new Error("コピーできませんでした。コード欄を開いて手動でコピーしてください。");
+    }
+    toast("コードをコピーしました", "success");
+  } catch (error) {
+    toast(error.message || "コピーに失敗しました", "error");
+    const dialog = document.getElementById("paste-dialog");
+    document.getElementById("paste-filename").value = activePath;
+    document.getElementById("paste-code").value = text;
+    dialog.showModal();
+    const area = document.getElementById("paste-code"); area.focus(); area.select();
+  }
+}
+document.getElementById("copy-code").addEventListener("click", copyCurrentCode);
+document.getElementById("paste-code-open").addEventListener("click", () => {
+  document.getElementById("paste-filename").value = activePath || "index.html";
+  document.getElementById("paste-code").value = editor ? editor.getValue() : (projectFiles[activePath] || "");
+  document.getElementById("paste-dialog").showModal();
+  const area = document.getElementById("paste-code");
+  area.focus();
+  area.setSelectionRange(0, area.value.length);
+});
 document.getElementById("paste-open").addEventListener("click", () => {
   document.getElementById("paste-filename").value = activePath || "index.html";
   document.getElementById("paste-code").value = editor ? editor.getValue() : "";
