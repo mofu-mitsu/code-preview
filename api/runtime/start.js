@@ -3,7 +3,7 @@ import { Sandbox } from "@vercel/sandbox";
 
 export const config = { maxDuration: 30 };
 
-const MAX_FILES = 100;
+const MAX_FILES = 200;
 const MAX_FILE_BYTES = 500_000;
 const MAX_TOTAL_BYTES = 3_000_000;
 
