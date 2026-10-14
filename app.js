@@ -496,9 +496,15 @@ async function runRemoteProject() {
     remoteRuntimeId = result.id;
     setStatus("依存関係をインストール中…");
     log("隔離ランタイムを作成しました。依存関係をインストールしています。", "info");
+    const runtimePollStartedAt = Date.now();
     for (let attempt = 0; attempt < 900; attempt++) {
       await new Promise(resolve => setTimeout(resolve, 2000));
       if (token !== remotePollToken) return;
+      // API応答が遅延・失敗しても、クライアント側の生存ログは10秒ごとに出す。
+      if (attempt % 5 === 0) {
+        const elapsedSeconds = Math.floor((Date.now() - runtimePollStartedAt) / 1000);
+        log("起動確認中 · 経過 " + Math.floor(elapsedSeconds / 60) + "分" + (elapsedSeconds % 60) + "秒", "info");
+      }
       const statusResponse = await fetch("/api/runtime/status?id=" + encodeURIComponent(result.id), { cache: "no-store" });
       const state = await readApiResponse(statusResponse);
       if (state.logs) {
