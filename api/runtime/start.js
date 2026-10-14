@@ -55,6 +55,7 @@ export default async function handler(req, res) {
     const port = 3000;
     const id = "cp-" + randomUUID();
     sandbox = await Sandbox.create({ name: id, teamId: process.env.VERCEL_TEAM_ID || "team_q6z73x6vrTY4W6mHF0BjpWwJ", projectId: process.env.VERCEL_PROJECT_ID, token: process.env.VERCEL_TOKEN || req.headers["x-vercel-oidc-token"], persistent: true, ports: [port], timeout: 2_700_000, resources: { vcpus: 1 }, networkPolicy: "allow-all" });
+    const runtimeId = sandbox.name || id;
     await sandbox.writeFiles(safeFiles);
     const script = `#!/usr/bin/env bash
 set +e
@@ -96,7 +97,7 @@ exit 1
 `;
     await sandbox.writeFiles([{ path: ".code-preview-start.sh", content: Buffer.from(script), mode: 0o755 }]);
     await sandbox.runCommand({ cmd: "bash", args: ["/vercel/sandbox/.code-preview-start.sh"], cwd: "/vercel/sandbox", detached: true });
-    return send(res, 200, { id, previewUrl: sandbox.domain(port), state: "installing", message: "依存関係をインストールしています" });
+    return send(res, 200, { id: runtimeId, previewUrl: sandbox.domain(port), state: "installing", message: "依存関係をインストールしています" });
   } catch (error) {
     if (sandbox) { try { await sandbox.stop(); } catch {} }
     return send(res, 500, { error: error?.message || "リモート実行環境を起動できませんでした" });
