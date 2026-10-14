@@ -26,6 +26,30 @@ const projectStatus = document.getElementById("project-status");
 const activeLabel = document.getElementById("active-file-label");
 
 function setStatus(message) { projectStatus.textContent = message; }
+function confirmAction(message, title = "確認") {
+  const dialog = document.getElementById("confirm-dialog");
+  if (!dialog) return Promise.resolve(true);
+  document.getElementById("confirm-dialog-title").textContent = title;
+  document.getElementById("confirm-dialog-message").textContent = message;
+  dialog.showModal();
+  return new Promise(resolve => {
+    const yes = document.getElementById("confirm-dialog-yes");
+    const no = document.getElementById("confirm-dialog-no");
+    const cleanup = value => {
+      yes.removeEventListener("click", onYes);
+      no.removeEventListener("click", onNo);
+      dialog.removeEventListener("close", onClose);
+      if (dialog.open) dialog.close();
+      resolve(value);
+    };
+    const onYes = () => cleanup(true);
+    const onNo = () => cleanup(false);
+    const onClose = () => cleanup(false);
+    yes.addEventListener("click", onYes);
+    no.addEventListener("click", onNo);
+    dialog.addEventListener("close", onClose);
+  });
+}
 function toast(message, kind = "info") {
   const region = document.getElementById("toast-region");
   if (!region) return;
@@ -139,10 +163,10 @@ function renderFileList() {
       toggle.textContent = (collapsedFolders.has(folder.path) ? "▸ " : "▾ ") + "📁 " + name; toggle.title = folder.path;
       toggle.addEventListener("click", () => { if (collapsedFolders.has(folder.path)) collapsedFolders.delete(folder.path); else collapsedFolders.add(folder.path); renderFileList(); });
       const remove = document.createElement("button"); remove.type = "button"; remove.className = "file-delete"; remove.textContent = "×"; remove.title = "フォルダと中のファイルを削除";
-      remove.addEventListener("click", event => {
+      remove.addEventListener("click", async event => {
         event.stopPropagation();
         const count = Object.keys(projectFiles).filter(p => p.startsWith(folder.path + "/")).length;
-        if (!confirm("フォルダ「" + folder.path + "」" + (count ? "と中の " + count + " ファイル" : "") + "を削除しますか？")) return;
+        if (!(await confirmAction("フォルダ「" + folder.path + "」" + (count ? "と中の " + count + " ファイル" : "") + "を削除しますか？", "フォルダを削除"))) return;
         syncEditor();
         Object.keys(projectFiles).filter(p => p.startsWith(folder.path + "/")).forEach(p => delete projectFiles[p]);
         [...explicitFolders].filter(p => p === folder.path || p.startsWith(folder.path + "/")).forEach(p => explicitFolders.delete(p));
@@ -160,9 +184,9 @@ function renderFileList() {
       const name = document.createElement("span"); name.className = "file-name"; name.textContent = path.split("/").pop();
       button.append(icon,name); button.addEventListener("click", () => openFile(path));
       const remove = document.createElement("button"); remove.type = "button"; remove.className = "file-delete"; remove.textContent = "×"; remove.title = "ファイルを削除";
-      remove.addEventListener("click", event => {
+      remove.addEventListener("click", async event => {
         event.stopPropagation();
-        if (!confirm("ファイル「" + path + "」を削除しますか？")) return;
+        if (!(await confirmAction("ファイル「" + path + "」を削除しますか？", "ファイルを削除"))) return;
         syncEditor(); delete projectFiles[path];
         if (activePath === path) { activePath = Object.keys(projectFiles)[0] || "index.html"; if (projectFiles[activePath] === undefined) projectFiles[activePath] = ""; if (editor) { editor.setValue(projectFiles[activePath]); monaco.editor.setModelLanguage(editor.getModel(), editorLanguage(activePath)); } activeLabel.textContent = activePath; }
         renderFileList(); setStatus("ファイルを削除しました"); run();
@@ -243,15 +267,17 @@ language.addEventListener("change", () => {
   projectFiles[file] = defaults[lang]; openFile(file); run();
 });
 document.getElementById("run").addEventListener("click", run);
-document.getElementById("refresh").addEventListener("click", () => {
+document.getElementById("undo").addEventListener("click", () => { if (!editor) return; editor.focus(); editor.trigger("toolbar", "undo", null); toast("編集を元に戻しました", "info"); });
+document.getElementById("redo").addEventListener("click", () => { if (!editor) return; editor.focus(); editor.trigger("toolbar", "redo", null); toast("編集をやり直しました", "info"); });
+document.getElementById("refresh").addEventListener("click", async () => {
   if (sourceKind === "github" && lastGithubUrl) {
-    if (!confirm("GitHub からファイル一覧と内容を再取得します。エディタ内の変更は破棄されます。続けますか？")) return;
+    if (!(await confirmAction("GitHub からファイル一覧と内容を再取得します。エディタ内の変更は破棄されます。続けますか？", "GitHubから再読み込み"))) return;
     document.getElementById("github-url").value = lastGithubUrl;
     document.getElementById("github-form").requestSubmit();
   } else run();
 });
-document.getElementById("reset").addEventListener("click", () => {
-  if (!confirm("エディタ内の全ファイルを削除します。よろしいですか？")) return;
+document.getElementById("reset").addEventListener("click", async () => {
+  if (!(await confirmAction("エディタ内の全ファイルを削除します。よろしいですか？", "すべてのファイルを削除"))) return;
   projectFiles = {}; activePath = "index.html"; sourceKind = "empty"; githubMeta = null; lastGithubUrl = ""; currentPreview = "";
   if (editor) { editor.setValue(""); monaco.editor.setModelLanguage(editor.getModel(), "html"); }
   activeLabel.textContent = "ファイルなし";
@@ -429,12 +455,17 @@ document.getElementById("file-actions").addEventListener("change", event => {
   const action = event.target.value; event.target.value = "";
   if (action === "file") document.getElementById("newfile-dialog").showModal();
   if (action === "folder") {
-    const path = prompt("作成するフォルダ名（例: src/components）");
-    if (!path) return;
-    const clean = path.trim().replace(/^\/+|\/+$/g, "");
-    if (!clean || clean.split("/").some(part => !part || part === "." || part === "..")) { toast("フォルダ名を確認してください", "error"); return; }
-    explicitFolders.add(clean); sourceKind = "project"; renderFileList(); setStatus("フォルダを追加しました"); toast("フォルダを追加しました: " + clean, "success");
+    document.getElementById("newfolder-name").value = "";
+    document.getElementById("newfolder-dialog").showModal();
   }
+});
+document.getElementById("newfolder-create").addEventListener("click", event => {
+  event.preventDefault();
+  const path = document.getElementById("newfolder-name").value.trim().replace(/^\\/+|\\/+$/g, "");
+  if (!path || path.split("/").some(part => !part || part === "." || part === "..")) { toast("フォルダ名を確認してください", "error"); return; }
+  if (explicitFolders.has(path) || Object.keys(projectFiles).some(p => p.startsWith(path + "/"))) { toast("同じフォルダがすでに存在します", "error"); return; }
+  explicitFolders.add(path); sourceKind = "project"; renderFileList(); setStatus("フォルダを追加しました"); toast("フォルダを追加しました: " + path, "success");
+  document.getElementById("newfolder-dialog").close();
 });
 document.getElementById("newfile-create").addEventListener("click", event => {
   event.preventDefault(); const path = document.getElementById("newfile-name").value.trim().replace(/^\/+/,"");
