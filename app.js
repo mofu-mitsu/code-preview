@@ -241,7 +241,23 @@ document.getElementById("github-form").addEventListener("submit", async event =>
     if (!treeRes.ok) throw new Error("ファイル一覧を取得できませんでした。ブランチ名を確認してください。");
     const treeData = await treeRes.json();
     if (treeData.truncated) log("リポジトリが大きいため、取得できる範囲だけ読み込みます。", "info");
-    const candidates = (treeData.tree || []).filter(x => x.type === "blob" && (!subdir || x.path.startsWith(subdir.replace(/\/$/,"") + "/")) && !/(^|\/)(node_modules|\.git|dist|build|\.next|coverage)(\/|$)/.test(x.path) && (TEXT_EXT.test(x.path) || /\.(png|jpe?g|gif|webp|ico|woff2?|ttf|mp4|mp3)$/i.test(x.path)) && x.size < 700000).slice(0,70);
+    const candidates = (treeData.tree || [])
+      .filter(x => x.type === "blob" && (!subdir || x.path.startsWith(subdir.replace(/\/$/,"") + "/")) && !/(^|\/)(node_modules|\.git|dist|build|\.next|coverage)(\/|$)/.test(x.path) && (TEXT_EXT.test(x.path) || /\.(png|jpe?g|gif|webp|ico|woff2?|ttf|mp4|mp3)$/i.test(x.path)) && x.size < 500000)
+      .sort((a, b) => {
+        const priority = filePath => {
+          const p = (subdir ? filePath.slice(subdir.replace(/\/$/, "").length + 1) : filePath).toLowerCase();
+          const base = p.split("/").pop();
+          if (/^(package\.json|package-lock\.json|npm-shrinkwrap\.json|pnpm-lock\.yaml|yarn\.lock|tsconfig\.json|jsconfig\.json|next\.config\.[cm]?[jt]s|postcss\.config\.[cm]?[jt]s|tailwind\.config\.[cm]?[jt]s|eslint\.config\.[cm]?[jt]s)$/.test(base)) return 0;
+          if (/^(app|src\/app|pages|src\/pages)\//.test(p) && /\.(tsx?|jsx?)$/.test(p)) return 1;
+          if (/^(components|src\/components|lib|src\/lib|hooks|src\/hooks|utils|src\/utils|types|src\/types|context|src\/context|providers|src\/providers|styles|src\/styles)\//.test(p) && /\.(tsx?|jsx?)$/.test(p)) return 2;
+          if (/\.(tsx?|jsx?|css|scss|sass|json)$/.test(p)) return 3;
+          if (/^(public|assets|images|fonts)\//.test(p) || /\.(png|jpe?g|gif|webp|ico|woff2?|ttf|mp4|mp3)$/i.test(p)) return 5;
+          if (/^(readme|license|changelog|contributing)(\.|$)/i.test(base) || /(^|\/)(docs?|__tests__|tests?|coverage|examples?)(\/|$)/i.test(p)) return 8;
+          return 4;
+        };
+        return priority(a.path) - priority(b.path) || a.path.localeCompare(b.path);
+      })
+      .slice(0, 100);
     if (!candidates.length) throw new Error("取り込めるファイルが見つかりませんでした。");
     const files = {};
     for (let i=0;i<candidates.length;i++) {
@@ -258,7 +274,7 @@ document.getElementById("github-form").addEventListener("submit", async event =>
     if (!Object.keys(files).length) throw new Error("ファイルの内容を取得できませんでした。");
     sourceKind = "github"; setProject(files, owner + "/" + repo + " · " + branch);
     toast("GitHub から " + Object.keys(files).length + " ファイルを読み込みました", "success");
-    if (candidates.length >= 70) log("表示対象は最大70ファイルです。", "info");
+    if (candidates.length >= 100) log("表示対象は最大100ファイルです。依存ファイルが不足する場合は、不要なファイルを除外するか必要なソースを個別に追加してください。", "info");
   } catch (error) { setStatus("読み込み失敗"); log(error.message || error, "error"); toast(error.message || "読み込みに失敗しました", "error"); }
   finally { button.disabled = false; button.textContent = "取り込む"; }
 });
