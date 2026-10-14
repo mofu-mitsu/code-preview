@@ -102,9 +102,17 @@ write_diagnostics() {
   } > .code-preview-diagnostics.log 2>&1
 }
 for i in $(seq 1 120); do
-  if curl --max-time 2 -fsS http://127.0.0.1:3000 >/dev/null 2>&1; then
+  HTTP_CODE=$(curl --max-time 2 -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3000 2>/dev/null || true)
+  if [ "$HTTP_CODE" -ge 200 ] 2>/dev/null && [ "$HTTP_CODE" -lt 400 ] 2>/dev/null; then
     printf '{"state":"ready","stage":"ready","startedAt":%s,"message":"プレビューを起動しました"}' "$STARTED_AT" > .code-preview-status.json
     exit 0
+  fi
+  if grep -Eq 'Module not found:|Failed to compile|Build Error|SyntaxError:|Parsing ecmascript source code failed|Cannot find module' .code-preview-server.log 2>/dev/null; then
+    write_diagnostics
+    ERROR_DETAILS=$(grep -E 'Module not found:|Failed to compile|Build Error|SyntaxError:|Parsing ecmascript source code failed|Cannot find module' .code-preview-server.log | tail -n 3 | tr '\\n' ' ' | cut -c1-500)
+    export ERROR_DETAILS
+    python3 -c 'import json,os; print(json.dumps({"state":"error","stage":"compile","startedAt":int(os.environ["STARTED_AT"]),"message":"コンパイルエラー: " + os.environ.get("ERROR_DETAILS", "ソースコードを確認してください")},ensure_ascii=False), file=open(".code-preview-status.json","w"))'
+    exit 1
   fi
   if ! server_process_alive; then
     sleep 2
