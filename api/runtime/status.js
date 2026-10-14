@@ -15,8 +15,8 @@ export default async function handler(req, res) {
     const sandbox = await Sandbox.get({ name: id });
     const result = await sandbox.runCommand({
       cmd: "bash",
-      args: ["-c", "cat /vercel/sandbox/.code-preview-status.json 2>/dev/null || printf '{}'; echo __LOG__; tail -n 18 /vercel/sandbox/.code-preview-build.log /vercel/sandbox/.code-preview-server.log /vercel/sandbox/.code-preview-install.log 2>/dev/null; echo __RESULT__; cat /vercel/sandbox/.code-preview-result.json 2>/dev/null || true"],
-      cwd: "/vercel/sandbox"
+      args: ["-c", "cat /vercel/.code-preview-status.json 2>/dev/null || printf '{}'; echo __LOG__; tail -n 18 /vercel/.code-preview-build.log /vercel/.code-preview-server.log /vercel/.code-preview-install.log 2>/dev/null; echo __RESULT__; cat /vercel/.code-preview-result.json 2>/dev/null || true"],
+      cwd: "/vercel"
     });
     const output = await result.stdout();
     const parts = output.split("__LOG__");
