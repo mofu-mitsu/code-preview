@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Sandbox } from "@vercel/sandbox";
 
 export const config = { maxDuration: 30 };
-const MAX_FILES = 100;
+const MAX_FILES = 200;
 const MAX_TOTAL_BYTES = 2_000_000;
 function send(res, status, body) {
   res.statusCode = status;
@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     const files = body.files;
     if (!files || typeof files !== "object" || Array.isArray(files)) return send(res, 400, { error: "files が必要です" });
     const entries = Object.entries(files);
-    if (!entries.length || entries.length > MAX_FILES) return send(res, 400, { error: "ファイル数は1〜100件にしてください" });
+    if (!entries.length || entries.length > MAX_FILES) return send(res, 400, { error: "ファイル数は1〜200件にしてください" });
     let total = 0;
     const safeFiles = entries.map(([name, value]) => {
       const path = safePath(name);
