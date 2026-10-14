@@ -58,3 +58,22 @@ dialog{border:0;border-radius:16px;padding:0;width:min(620px,calc(100vw - 28px))
 .preview-ready-button{padding:7px 9px;border-radius:7px;background:#26754b;color:#fff;text-decoration:none;font-size:10px;font-weight:700;white-space:nowrap}
 .preview-ready-button:hover{background:#1c603c}
 @media(max-width:620px){.preview-ready-banner{gap:7px;padding:8px}.preview-ready-button{font-size:9px;padding:6px}.preview-ready-check{width:23px;height:23px;flex-basis:23px}}
+
+/* File tree, per-file delete controls, and import progress in preview */
+.file-actions{max-width:100px;letter-spacing:0;font-size:10px;padding:4px 5px;border:1px solid #e6dceb;border-radius:6px;background:#fff;color:#6c567d}
+.file-row,.folder-row{display:flex;align-items:center;gap:3px;min-width:0;padding-right:3px}
+.file-row .file-item{flex:1;min-width:0;padding:6px 5px;gap:5px}
+.folder-row{padding-top:2px;padding-bottom:2px}
+.folder-toggle{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;border:0;background:transparent;color:#79628d;font-size:10px;font-weight:700;padding:6px 3px;border-radius:5px}
+.folder-toggle:hover{background:#f7f1fb}
+.file-delete{flex:0 0 20px;width:20px;height:22px;border:0;border-radius:5px;background:transparent;color:#b3a5bd;font-size:16px;line-height:1}
+.file-delete:hover{background:#ffedf0;color:#c74461}
+.preview-import-progress{padding:13px 14px;background:#faf6ff;border-bottom:1px solid #e9dcf6;flex-shrink:0}
+.preview-import-progress[hidden]{display:none!important}
+.preview-import-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;color:#67428d;font-size:11px}
+.preview-import-top strong{overflow-wrap:anywhere}
+.preview-import-top span{white-space:nowrap;font-size:10px;color:#8b73a2}
+.preview-import-track{height:7px;margin-top:9px;border-radius:99px;background:#e8dcf3;overflow:hidden}
+.preview-import-bar{height:100%;width:0;background:linear-gradient(90deg,#b58be8,#8050bd);border-radius:99px;transition:width .12s ease}
+.preview-import-progress p{margin:7px 0 0;color:#9887a5;font-size:10px}
+@media(max-width:620px){.file-actions{max-width:90px;font-size:9px}.preview-import-progress{padding:10px}}
