@@ -604,8 +604,10 @@ async function runRemoteProject() {
         status.textContent = "Preview ready";
         setStatus("リモートプレビュー稼働中 · " + new URL(result.previewUrl).host);
         const readyLink = document.getElementById("preview-ready-link");
+        const readyOpen = document.getElementById("preview-ready-open");
         const readyMessage = document.getElementById("preview-ready-message");
         if (readyLink) { readyLink.href = result.previewUrl; readyLink.textContent = result.previewUrl; }
+        if (readyOpen) readyOpen.href = result.previewUrl;
         if (readyMessage) readyMessage.textContent = "プレビューが完成しました";
         if (readyBanner) readyBanner.hidden = false;
         log("プレビューが起動しました: " + result.previewUrl, "info");
