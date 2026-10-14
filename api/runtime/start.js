@@ -81,18 +81,42 @@ else
   npm run dev -- --host 0.0.0.0 --port 3000 >> .code-preview-server.log 2>&1 &
 fi
 SERVER_PID=$!
+server_process_alive() {
+  kill -0 "$SERVER_PID" 2>/dev/null && return 0
+  ps -eo args= | grep -Eq '[n]ext dev|[v]ite|[a]stro dev|[n]uxt dev|[r]eact-scripts start|[w]ebpack serve|[p]arcel|node .*server\.(js|mjs|cjs)'
+}
+write_diagnostics() {
+  {
+    echo "=== Code Preview startup diagnostics ==="
+    date -u
+    echo "--- processes ---"
+    ps -eo pid,ppid,stat,rss,args
+    echo "--- memory ---"
+    free -m
+    for f in /sys/fs/cgroup/memory.events /sys/fs/cgroup/memory.current /sys/fs/cgroup/memory.max; do
+      if [ -r "$f" ]; then echo "--- $f ---"; cat "$f"; fi
+    done
+    echo "--- recent server log ---"
+    tail -n 60 .code-preview-server.log 2>/dev/null
+  } > .code-preview-diagnostics.log 2>&1
+}
 for i in $(seq 1 120); do
-  if curl -fsS http://127.0.0.1:3000 >/dev/null 2>&1; then
+  if curl --max-time 2 -fsS http://127.0.0.1:3000 >/dev/null 2>&1; then
     printf '{"state":"ready","stage":"ready","startedAt":%s,"message":"プレビューを起動しました"}' "$STARTED_AT" > .code-preview-status.json
     exit 0
   fi
-  if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-    printf '{"state":"error","stage":"server","startedAt":%s,"message":"開発サーバーが終了しました"}' "$STARTED_AT" > .code-preview-status.json
-    exit 1
+  if ! server_process_alive; then
+    sleep 2
+    if ! curl --max-time 2 -fsS http://127.0.0.1:3000 >/dev/null 2>&1 && ! server_process_alive; then
+      write_diagnostics
+      printf '{"state":"error","stage":"server","startedAt":%s,"message":"開発サーバーのプロセスが終了しました。診断ログを確認してください"}' "$STARTED_AT" > .code-preview-status.json
+      exit 1
+    fi
   fi
   sleep 1
 done
-printf '{"state":"error","stage":"server","startedAt":%s,"message":"起動がタイムアウトしました"}' "$STARTED_AT" > .code-preview-status.json
+write_diagnostics
+printf '{"state":"error","stage":"server","startedAt":%s,"message":"起動がタイムアウトしました。診断ログを確認してください"}' "$STARTED_AT" > .code-preview-status.json
 exit 1
 `;
     await sandbox.writeFiles([{ path: ".code-preview-start.sh", content: Buffer.from(script), mode: 0o755 }]);
