@@ -141,3 +141,11 @@ dialog{border:0;border-radius:16px;padding:0;width:min(620px,calc(100vw - 28px))
   #paste-dialog .dialog-card p{font-size:13px;line-height:1.55}
   #paste-dialog #paste-code{font-size:16px;line-height:1.5;min-height:45vh;-webkit-user-select:text;user-select:text}
 }
+
+/* Project export controls */
+.export-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.export-actions button{white-space:nowrap}
+@media(max-width:620px){
+  .export-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;width:100%}
+  .export-actions button{min-width:0;white-space:normal;font-size:11px;line-height:1.3;padding:9px 5px}
+}
