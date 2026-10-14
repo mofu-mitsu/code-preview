@@ -44,3 +44,17 @@ dialog{border:0;border-radius:16px;padding:0;width:min(620px,calc(100vw - 28px))
 .console-resizer::after{content:"";width:42px;height:3px;border-radius:4px;background:#b7a3c8;box-shadow:0 0 0 1px #b7a3c820}
 .console-resizer:hover,.console-resizer:focus-visible{background:#eadcf5;outline:2px solid #b68ce0;outline-offset:-2px}
 .console-resizer[hidden]{display:none!important}
+
+
+/* Clickable runtime URLs and visible successful-preview state */
+.console-link{color:#bda0ff;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px;overflow-wrap:anywhere}
+.console-link:hover{color:#e2d2ff;text-decoration-thickness:2px}
+.preview-ready-banner{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f3fff8;border-bottom:1px solid #cdebd8;color:#285b40;flex-shrink:0}
+.preview-ready-banner[hidden]{display:none!important}
+.preview-ready-check{display:grid;place-items:center;width:27px;height:27px;flex:0 0 27px;border-radius:50%;background:#d8f6e4;color:#237546;font-weight:900}
+.preview-ready-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+.preview-ready-copy strong{font-size:11px}
+.preview-ready-copy a{font-size:10px;color:#26754b;overflow-wrap:anywhere;text-decoration:underline;text-underline-offset:2px}
+.preview-ready-button{padding:7px 9px;border-radius:7px;background:#26754b;color:#fff;text-decoration:none;font-size:10px;font-weight:700;white-space:nowrap}
+.preview-ready-button:hover{background:#1c603c}
+@media(max-width:620px){.preview-ready-banner{gap:7px;padding:8px}.preview-ready-button{font-size:9px;padding:6px}.preview-ready-check{width:23px;height:23px;flex-basis:23px}}
