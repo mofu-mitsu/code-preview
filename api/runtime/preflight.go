@@ -9,9 +9,9 @@ import (
 
 const (
 	maxManifestBytes = 256 * 1024
-	maxFiles         = 100
+	maxFiles         = 200
 	maxFileBytes     = 500_000
-	maxTotalBytes    = 1_800_000
+	maxTotalBytes    = 3_000_000
 )
 
 type fileEntry struct {
@@ -59,7 +59,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(input.Files) == 0 || len(input.Files) > maxFiles {
-		writeJSON(w, http.StatusBadRequest, responseBody{Error: "ファイル数は1〜100件にしてください"})
+		writeJSON(w, http.StatusBadRequest, responseBody{Error: "ファイル数は1〜200件にしてください"})
 		return
 	}
 
@@ -86,7 +86,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		}
 		total += file.Bytes
 		if total > maxTotalBytes {
-			writeJSON(w, http.StatusRequestEntityTooLarge, responseBody{Error: "プロジェクトのテキスト合計は1.8MB以内にしてください"})
+			writeJSON(w, http.StatusRequestEntityTooLarge, responseBody{Error: "プロジェクトのテキスト合計は3MB以内にしてください"})
 			return
 		}
 		if strings.EqualFold(path.Base(clean), "package.json") {
