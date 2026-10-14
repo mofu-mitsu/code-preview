@@ -86,3 +86,50 @@ dialog{border:0;border-radius:16px;padding:0;width:min(620px,calc(100vw - 28px))
 #confirm-dialog-message{line-height:1.7;overflow-wrap:anywhere;white-space:pre-wrap}
 #newfolder-name,#newfile-name{width:100%}
 @media(max-width:620px){.icon-button{width:32px;height:32px;padding:6px}}
+
+/* Mobile layout: keep import controls and file actions inside the viewport. */
+.editor-head{gap:5px}
+.editor-tools{display:flex;align-items:center;gap:5px;min-width:0;letter-spacing:0}
+.editor-tools #status{font-weight:500;letter-spacing:0;white-space:nowrap}
+.editor-tools .mini{padding:5px 8px}
+@media(max-width:620px){
+  .topbar{padding:10px 12px;gap:8px}
+  .brand{font-size:18px}
+  .subtitle{font-size:10px}
+  .controls{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;width:100%;gap:5px}
+  .controls select{max-width:100px;min-width:0}
+  .controls button{font-size:11px;padding:7px 8px}
+  .importbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:10px}
+  .github-form{grid-column:1 / -1;display:flex;min-width:0;width:100%;gap:5px}
+  .github-form input{width:0;min-width:0;font-size:12px;padding:9px 8px}
+  .github-form button{flex-shrink:0;padding:8px 10px}
+  .github-mark{flex-shrink:0}
+  .importbar>.file-button,.importbar>button,.importbar>.tool-link{display:flex;justify-content:center;align-items:center;min-width:0;white-space:normal;text-align:center;font-size:11px;padding:9px 6px;line-height:1.35}
+  #project-status{grid-column:1 / -1;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+  .workspace{height:auto;min-height:0;display:grid;grid-template-columns:76px minmax(0,1fr);grid-template-rows:minmax(330px,48vh) minmax(280px,42vh);gap:1px}
+  .files-panel{grid-column:1;grid-row:1 / span 2;min-width:0}
+  .editor-panel{grid-column:2;grid-row:1;min-width:0}
+  .preview-panel{grid-column:2;grid-row:2;min-width:0}
+  .panel-head{padding:0 6px;font-size:9px;letter-spacing:.04em;gap:3px}
+  .files-panel .panel-head{height:auto;min-height:48px;align-items:flex-start;flex-direction:column;justify-content:center;padding:5px}
+  .file-actions{width:100%;max-width:none;font-size:9px;padding:5px 2px}
+  .file-list{padding:5px 3px}
+  .file-row{gap:1px}
+  .file-row .file-item{padding:7px 3px;gap:3px}
+  .file-name{font-size:10px}
+  .file-icon{width:12px;font-size:9px}
+  .file-remove{padding:3px 2px}
+  .editor-head{flex-wrap:wrap;align-content:center}
+  .editor-tools{gap:3px}
+  .editor-tools .mini{padding:5px 6px;font-size:10px}
+  .editor-tools #status{display:none}
+  #editor{min-width:0;touch-action:pan-x pan-y}
+  .preview-panel .panel-head .head-actions{gap:3px}
+  .preview-panel .panel-head .mini{padding:5px 5px;font-size:9px}
+  dialog{max-width:calc(100vw - 20px)}
+  .dialog-card{padding:15px;gap:9px}
+  .dialog-card textarea{height:50vh;min-height:220px;font-size:16px}
+  #paste-filename{font-size:16px}
+  .toast-region{left:10px;right:10px;bottom:12px}
+  .toast{max-width:100%;font-size:12px}
+}
