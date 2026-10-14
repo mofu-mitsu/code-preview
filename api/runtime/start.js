@@ -54,13 +54,14 @@ export default async function handler(req, res) {
     const nextProject = !!(packageData.dependencies?.next || packageData.devDependencies?.next || allPaths.some(path => /(^|\/)next\.config\.(js|mjs|ts|cjs)$/i.test(path)));
     const port = 3000;
     const id = "cp-" + randomUUID();
-    sandbox = await Sandbox.create({ name: id, teamId: process.env.VERCEL_TEAM_ID || "team_q6z73x6vrTY4W6mHF0BjpWwJ", projectId: process.env.VERCEL_PROJECT_ID, token: process.env.VERCEL_TOKEN || req.headers["x-vercel-oidc-token"], persistent: true, ports: [port], timeout: 2_700_000, resources: { vcpus: 1 }, networkPolicy: "allow-all" });
+    sandbox = await Sandbox.create({ name: id, teamId: process.env.VERCEL_TEAM_ID || "team_q6z73x6vrTY4W6mHF0BjpWwJ", projectId: process.env.VERCEL_PROJECT_ID, token: process.env.VERCEL_TOKEN || req.headers["x-vercel-oidc-token"], persistent: true, ports: [port], timeout: 2_700_000, resources: { vcpus: 2 }, networkPolicy: "allow-all" });
     const runtimeId = sandbox.name || id;
     await sandbox.writeFiles(safeFiles);
     const script = `#!/usr/bin/env bash
 set +e
 cd /vercel
 STARTED_AT=$(date +%s)
+export STARTED_AT
 printf '{"state":"installing","stage":"install","startedAt":%s,"message":"依存関係をインストールしています"}' "$STARTED_AT" > .code-preview-status.json
 if [ -f package-lock.json ]; then
   echo "[Code Preview] package-lock.json を検出: npm ci で再現可能な依存関係を準備します" > .code-preview-build.log
@@ -109,7 +110,14 @@ for i in $(seq 1 120); do
     sleep 2
     if ! curl --max-time 2 -fsS http://127.0.0.1:3000 >/dev/null 2>&1 && ! server_process_alive; then
       write_diagnostics
-      printf '{"state":"error","stage":"server","startedAt":%s,"message":"開発サーバーのプロセスが終了しました。診断ログを確認してください"}' "$STARTED_AT" > .code-preview-status.json
+      if grep -Eq '^oom_kill [1-9]' /sys/fs/cgroup/memory.events 2>/dev/null; then
+        ERROR_MESSAGE="メモリ不足で開発サーバーが強制終了しました（OOM）。メモリを増やして再試行してください"
+        export ERROR_MESSAGE
+      else
+        ERROR_MESSAGE="開発サーバーのプロセスが終了しました。診断ログを確認してください"
+        export ERROR_MESSAGE
+      fi
+      python3 -c 'import json,os; print(json.dumps({"state":"error","stage":"server","startedAt":int(os.environ["STARTED_AT"]),"message":os.environ["ERROR_MESSAGE"]},ensure_ascii=False), file=open(".code-preview-status.json","w"))'
       exit 1
     fi
   fi
