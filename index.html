@@ -3,10 +3,38 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Code Preview — ブラウザコード実験室</title>
-  <meta name="description" content="HTML・CSS・JavaScriptのブラウザプレビューと、Next.jsなどのリモートビルド、PHP・Python・Go・Rustのコード実行に対応するコード実験室。" />
-  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <link rel="stylesheet" href="style.css" />
+  <title>Code Preview｜オンラインコード実行・HTML/CSS/JSプレビュー・GitHubリポジトリ確認</title>
+  <meta name="description" content="Code Previewは、GitHubリポジトリ・ZIP・ローカルフォルダの複数ファイルを読み込み、HTML・CSS・JavaScriptをオンラインで編集・実行できるコードプレビュー環境。Next.jsなどのリモートビルドやPython・PHP・Go・Rustの実行にも対応。" />
+  <meta name="keywords" content="オンラインコードエディタ,コードプレビュー,HTMLプレビュー,CSSプレビュー,JavaScript実行,GitHubリポジトリ,オンラインIDE,Web開発ツール,コード実行環境,Next.jsプレビュー,Python実行" />
+  <meta name="robots" content="index,follow,max-image-preview:large" />
+  <meta name="theme-color" content="#f5efff" />
+  <link rel="canonical" href="https://code-preview-lovat.vercel.app/" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="ja_JP" />
+  <meta property="og:site_name" content="Code Preview" />
+  <meta property="og:title" content="Code Preview｜GitHubの複数ファイルを読み込んで、ブラウザでコードを実行・プレビュー" />
+  <meta property="og:description" content="GitHub・ZIP・ローカルフォルダのコードを読み込み、HTML/CSS/JavaScriptのプレビューやNext.jsなどのリモート実行を試せるオンライン開発ツール。" />
+  <meta property="og:url" content="https://code-preview-lovat.vercel.app/" />
+  <meta property="og:image" content="https://code-preview-lovat.vercel.app/ogp.png" />
+  <meta property="og:image:secure_url" content="https://code-preview-lovat.vercel.app/ogp.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Code Preview｜オンラインコード実行・プレビュー環境" />
+  <meta name="twitter:description" content="GitHub・ZIP・フォルダの複数ファイルを読み込み、コードを編集・実行。HTML/CSS/JSからリモートビルドまで試せる開発ツール。" />
+  <meta name="twitter:image" content="https://code-preview-lovat.vercel.app/ogp.png" />
+  <meta name="twitter:image:alt" content="Code Preview — オンラインコード編集・実行・プレビュー環境" />
+  <link rel="stylesheet" href="/style.css" />
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-GNTX973GET"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-GNTX973GET');
+  </script>
 </head>
 <body>
   <nav class="breadcrumb" aria-label="パンくずリスト"><a href="https://mofu-mitsu.github.io/">ホーム</a><span aria-hidden="true">›</span><span aria-current="page">Code Preview</span></nav>
