@@ -1,17 +1,37 @@
 {
   "functions": {
-    "api/runtime/execute.js": { "maxDuration": 60 },
-    "api/runtime/start.js": { "maxDuration": 30 },
-    "api/runtime/status.js": { "maxDuration": 20 },
-    "api/runtime/stop.js": { "maxDuration": 15 }
+    "api/runtime/execute.js": {
+      "maxDuration": 60
+    },
+    "api/runtime/start.js": {
+      "maxDuration": 30
+    },
+    "api/runtime/status.js": {
+      "maxDuration": 20
+    },
+    "api/runtime/stop.js": {
+      "maxDuration": 15
+    }
   },
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
       ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/index.html"
     }
   ]
 }
