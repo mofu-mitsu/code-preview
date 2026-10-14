@@ -538,7 +538,7 @@ document.getElementById("paste-open").addEventListener("click", () => {
 });
 document.getElementById("paste-load").addEventListener("click", event => {
   event.preventDefault();
-  const path = document.getElementById("paste-filename").value.trim().replace(/^\\/+/, "") || "index.html";
+  const path = document.getElementById("paste-filename").value.trim().replace(/^\/+/, "") || "index.html";
   const code = document.getElementById("paste-code").value;
 
   // Persist the editor buffer before applying the mobile textarea contents.
