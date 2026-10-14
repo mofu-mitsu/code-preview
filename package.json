@@ -5,6 +5,6 @@
   "type": "module",
   "description": "Browser code editor with isolated remote runtimes for web projects and compiled languages",
   "dependencies": {
-    "@vercel/sandbox": "^1.2.0"
+    "@vercel/sandbox": "beta"
   }
 }
