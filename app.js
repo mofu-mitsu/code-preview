@@ -431,7 +431,7 @@ document.getElementById("file-actions").addEventListener("change", event => {
   if (action === "folder") {
     const path = prompt("作成するフォルダ名（例: src/components）");
     if (!path) return;
-    const clean = path.trim().replace(/^\\/+|\\/+$/g, "");
+    const clean = path.trim().replace(/^\/+|\/+$/g, "");
     if (!clean || clean.split("/").some(part => !part || part === "." || part === "..")) { toast("フォルダ名を確認してください", "error"); return; }
     explicitFolders.add(clean); sourceKind = "project"; renderFileList(); setStatus("フォルダを追加しました"); toast("フォルダを追加しました: " + clean, "success");
   }
