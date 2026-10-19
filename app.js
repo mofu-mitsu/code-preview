@@ -919,6 +919,12 @@ function run() {
     if (entry && !/\.(jsx|tsx)$/i.test(activePath)) html = rewriteAssets(projectFiles[entry],entry);
     else html = buildPreview(code,lang);
     html = instrumentPreview(html);
+    if (sourceKind === "github" && githubMeta) {
+      crypto.subtle.digest("SHA-256", new TextEncoder().encode(html)).then(digest => {
+        const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+        log("生成プレビューHTML: SHA-256=" + hash + " · bytes=" + new TextEncoder().encode(html).length + " · source commit=" + githubMeta.commitSha, "info");
+      }).catch(error => log("生成プレビューHTMLのハッシュ計算に失敗: " + error.message, "warn"));
+    }
     currentPreview = html; frame.srcdoc = html; status.textContent = "Ready";
   } catch(error) { status.textContent = "Error"; log(error.stack || error.message,"error"); toast(error.message || "プレビューに失敗しました", "error"); }
 }
