@@ -352,11 +352,12 @@ document.getElementById("github-form").addEventListener("submit", async event =>
   const button = document.getElementById("import-github"); button.disabled = true; button.textContent = "読み込み中…";
   setStatus("GitHubを読み込み中…"); clearConsole(); showImportProgress();
   try {
-    const meta = await fetch("https://api.github.com/repos/" + owner + "/" + repo);
+    const cacheBust = Date.now().toString();
+    const meta = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "?_=" + cacheBust, { cache: "no-store" });
     if (!meta.ok) throw new Error(meta.status === 404 ? "リポジトリが見つからないか、非公開です。" : "GitHub API error: " + meta.status);
     const repoData = await meta.json(), branch = branchFromUrl || repoData.default_branch;
     githubMeta = {owner, repo, branch, subdir: subdir.replace(/\/$/,"")}; lastGithubUrl = value; sourceKind = "github";
-    const treeRes = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "/git/trees/" + encodeURIComponent(branch) + "?recursive=1");
+    const treeRes = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "/git/trees/" + encodeURIComponent(branch) + "?recursive=1&_=" + cacheBust, { cache: "no-store" });
     if (!treeRes.ok) throw new Error("ファイル一覧を取得できませんでした。ブランチ名を確認してください。");
     const treeData = await treeRes.json();
     if (treeData.truncated) log("リポジトリが大きいため、取得できる範囲だけ読み込みます。", "info");
@@ -383,7 +384,8 @@ document.getElementById("github-form").addEventListener("submit", async event =>
       const item = candidates[i], path = subdir ? item.path.slice(subdir.length).replace(/^\//,"") : item.path;
       setStatus("取得中 " + (i+1) + "/" + candidates.length + " · " + Math.round((i+1)/candidates.length*100) + "%"); showImportProgress(candidates.length, i+1, path);
       try {
-        const response = await fetch("https://cdn.jsdelivr.net/gh/" + owner + "/" + repo + "@" + branch + "/" + item.path.split("/").map(encodeURIComponent).join("/"));
+        const assetUrl = "https://cdn.jsdelivr.net/gh/" + owner + "/" + repo + "@" + branch + "/" + item.path.split("/").map(encodeURIComponent).join("/") + "?v=" + encodeURIComponent(item.sha || cacheBust);
+        const response = await fetch(assetUrl, { cache: "no-store" });
         if (!response.ok) continue;
         const blob = await response.blob();
         if (TEXT_EXT.test(path)) files[path] = await blob.text();
