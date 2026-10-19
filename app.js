@@ -270,9 +270,12 @@ document.getElementById("run").addEventListener("click", run);
 document.getElementById("undo").addEventListener("click", () => { if (!editor) return; editor.focus(); editor.trigger("toolbar", "undo", null); toast("編集を元に戻しました", "info"); });
 document.getElementById("redo").addEventListener("click", () => { if (!editor) return; editor.focus(); editor.trigger("toolbar", "redo", null); toast("編集をやり直しました", "info"); });
 document.getElementById("refresh").addEventListener("click", async () => {
-  if (sourceKind === "github" && lastGithubUrl) {
-    if (!(await confirmAction("GitHub からファイル一覧と内容を再取得します。エディタ内の変更は破棄されます。続けますか？", "GitHubから再読み込み"))) return;
-    document.getElementById("github-url").value = lastGithubUrl;
+  const githubInput = document.getElementById("github-url");
+  const requestedUrl = githubInput.value.trim();
+  const targetUrl = requestedUrl || lastGithubUrl;
+  if (targetUrl && (sourceKind === "github" || requestedUrl)) {
+    if (!(await confirmAction("入力欄のGitHubリポジトリからファイル一覧と内容を再取得します。エディタ内の変更は破棄されます。続けますか？", "GitHubから再読み込み"))) return;
+    githubInput.value = targetUrl;
     document.getElementById("github-form").requestSubmit();
   } else run();
 });
