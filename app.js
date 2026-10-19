@@ -359,8 +359,15 @@ document.getElementById("github-form").addEventListener("submit", async event =>
     const meta = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "?_=" + cacheBust, { cache: "no-store" });
     if (!meta.ok) throw new Error(meta.status === 404 ? "リポジトリが見つからないか、非公開です。" : "GitHub API error: " + meta.status);
     const repoData = await meta.json(), branch = branchFromUrl || repoData.default_branch;
-    githubMeta = {owner, repo, branch, subdir: subdir.replace(/\/$/,"")}; lastGithubUrl = value; sourceKind = "github";
-    const treeRes = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "/git/trees/" + encodeURIComponent(branch) + "?recursive=1&_=" + cacheBust, { cache: "no-store" });
+    const commitRes = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "/commits/" + encodeURIComponent(branch) + "?_=" + cacheBust, { cache: "no-store" });
+    if (!commitRes.ok) throw new Error("ブランチの最新コミット情報を取得できませんでした。");
+    const commitData = await commitRes.json();
+    const commitSha = commitData.sha;
+    const commitDate = commitData.commit?.committer?.date || commitData.commit?.author?.date || "日時不明";
+    githubMeta = {owner, repo, branch, commitSha, commitDate, subdir: subdir.replace(/\/$/,"")}; lastGithubUrl = value; sourceKind = "github";
+    log("GitHub取得元: " + owner + "/" + repo + " · branch=" + branch, "info");
+    log("固定したコミット: " + commitSha + " · コミット日時=" + commitDate, "info");
+    const treeRes = await fetch("https://api.github.com/repos/" + owner + "/" + repo + "/git/trees/" + encodeURIComponent(commitSha) + "?recursive=1&_=" + cacheBust, { cache: "no-store" });
     if (!treeRes.ok) throw new Error("ファイル一覧を取得できませんでした。ブランチ名を確認してください。");
     const treeData = await treeRes.json();
     if (treeData.truncated) log("リポジトリが大きいため、取得できる範囲だけ読み込みます。", "info");
@@ -383,20 +390,38 @@ document.getElementById("github-form").addEventListener("submit", async event =>
       .slice(0, 200);
     if (!candidates.length) throw new Error("取り込めるファイルが見つかりませんでした。");
     const files = {};
+    const sha1 = async buffer => {
+      const digest = await crypto.subtle.digest("SHA-1", buffer);
+      return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+    };
+    let verifiedCount = 0, mismatchCount = 0;
     for (let i=0;i<candidates.length;i++) {
       const item = candidates[i], path = subdir ? item.path.slice(subdir.length).replace(/^\//,"") : item.path;
       setStatus("取得中 " + (i+1) + "/" + candidates.length + " · " + Math.round((i+1)/candidates.length*100) + "%"); showImportProgress(candidates.length, i+1, path);
       try {
-        const assetUrl = "https://cdn.jsdelivr.net/gh/" + owner + "/" + repo + "@" + branch + "/" + item.path.split("/").map(encodeURIComponent).join("/") + "?v=" + encodeURIComponent(item.sha || cacheBust);
+        // ブランチ名ではなく、取得開始時に確定したコミットSHAからファイルを取得する。
+        const assetUrl = "https://cdn.jsdelivr.net/gh/" + owner + "/" + repo + "@" + commitSha + "/" + item.path.split("/").map(encodeURIComponent).join("/");
         const response = await fetch(assetUrl, { cache: "no-store" });
-        if (!response.ok) continue;
+        if (!response.ok) {
+          log("取得失敗: " + path + " · HTTP " + response.status + " · source=" + assetUrl, "warn");
+          continue;
+        }
         const blob = await response.blob();
+        const actualBlobSha = await sha1(new Blob(["blob " + blob.size + "\0", blob]).arrayBuffer());
+        if (actualBlobSha === item.sha) verifiedCount++;
+        else {
+          mismatchCount++;
+          log("SHA不一致: " + path + " · GitHub tree=" + item.sha + " · 取得内容=" + actualBlobSha + " · URL=" + assetUrl, "error");
+        }
         if (TEXT_EXT.test(path)) files[path] = await blob.text();
         else files[path] = await blobToDataUrl(blob, MIME[extension(path)] || blob.type || "application/octet-stream");
-      } catch (_) {}
+      } catch (error) {
+        log("取得例外: " + path + " · " + (error.message || error), "warn");
+      }
     }
     if (!Object.keys(files).length) throw new Error("ファイルの内容を取得できませんでした。");
-    sourceKind = "github"; setProject(files, owner + "/" + repo + " · " + branch);
+    log("取得検証: " + verifiedCount + " files SHA一致 · " + mismatchCount + " files SHA不一致 · 読込=" + Object.keys(files).length + "/" + candidates.length, mismatchCount ? "warn" : "info");
+    sourceKind = "github"; setProject(files, owner + "/" + repo + " · " + branch + " · " + commitSha.slice(0, 7));
     toast("GitHub から " + Object.keys(files).length + " ファイルを読み込みました", "success");
     if (candidates.length >= 200) log("表示対象は最大200ファイルです。依存ファイルが不足する場合は、不要なファイルを除外するか必要なソースを個別に追加してください。", "info");
   } catch (error) { hideImportProgress(); setStatus("読み込み失敗"); log(error.message || error, "error"); toast(error.message || "読み込みに失敗しました", "error"); }
@@ -858,6 +883,15 @@ async function runRemoteProject() {
 }
 function run() {
   if (!editor) return;
+  // プレビューへ渡す入力の識別情報をログに残す（ソース全文は出さない）。
+  const previewPath = activePath;
+  const previewContent = projectFiles[previewPath] || "";
+  if (sourceKind === "github" && githubMeta) {
+    crypto.subtle.digest("SHA-256", new TextEncoder().encode(previewContent)).then(digest => {
+      const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+      log("プレビュー入力: " + previewPath + " · SHA-256=" + hash + " · bytes=" + new TextEncoder().encode(previewContent).length + " · source commit=" + githubMeta.commitSha, "info");
+    }).catch(error => log("プレビュー入力のハッシュ計算に失敗: " + error.message, "warn"));
+  }
   // 新しいプレビュー要求が来たら、前のリモート実行のポーリング結果を無効化する。
   // これをしないと、以前のプロジェクトの遅延レスポンスが新しいプレビューを上書きすることがある。
   remotePollToken++;
