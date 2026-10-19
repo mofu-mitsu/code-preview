@@ -627,23 +627,21 @@ function githubRawUrl(path) {
   return "https://cdn.jsdelivr.net/gh/" + githubMeta.owner + "/" + githubMeta.repo + "@" + githubMeta.branch + "/" + repoPath.split("/").map(encodeURIComponent).join("/");
 }
 function rewriteAssets(html, path) {
-  // GitHubから読み込んだHTMLは、取得済みのローカルCSS/JSをsrc/href経由で再取得せず、
-  // プレビューHTMLへ直接埋め込む。外部CDNのブランチ参照やiframe側の取得失敗を避ける。
+  // GitHubから読み込んだHTMLは、取得済みのローカルCSS/JSをプレビューHTMLへ直接埋め込む。
   if (githubMeta) {
-    html = html.replace(/<link\\b([^>]*?)href=(["'])(.*?)\\2([^>]*)>/gi, (whole, before, quote, target, after) => {
-      if (!/\\brel\\s*=\\s*(["'])?stylesheet\\1?/i.test(before + " " + after)) return whole;
+    html = html.replace(/<link\b([^>]*?)href=(["'])(.*?)\2([^>]*)>/gi, (whole, before, quote, target, after) => {
+      if (!/\brel\s*=\s*(["'])?stylesheet\1?/i.test(before + " " + after)) return whole;
       const resolved = resolvePath(path, target);
       if (!resolved || projectFiles[resolved] === undefined) return whole;
-      return "<style>" + String(projectFiles[resolved]).replace(/<\\/style/gi, "<\\\\/style") + "</style>";
+      return "<style>" + String(projectFiles[resolved]).replace(/<\/style/gi, "<\\/style") + "</style>";
     });
-    html = html.replace(/<script\\b([^>]*?)src=(["'])(.*?)\\2([^>]*)><\\/script>/gi, (whole, before, quote, target, after) => {
+    html = html.replace(/<script\b([^>]*?)src=(["'])(.*?)\2([^>]*)><\/script>/gi, (whole, before, quote, target, after) => {
       const resolved = resolvePath(path, target);
       if (!resolved || projectFiles[resolved] === undefined || typeof projectFiles[resolved] !== "string") return whole;
-      const attrs = (before + " " + after).replace(/\\s+src\\s*=\\s*(["']).*?\\1/i, "");
+      const attrs = (before + " " + after).replace(/\s+src\s*=\s*(["']).*?\1/i, "");
       return "<script" + attrs + ">" + escapeScript(projectFiles[resolved]) + "<\\/script>";
     });
-    // 画像・フォントなどの取得済みアセットはData URLに置き換える。
-    html = html.replace(/\\b(src|href|poster)=(["'])(.*?)\\2/gi, (whole, attr, quote, target) => {
+    html = html.replace(/\b(src|href|poster)=(["'])(.*?)\2/gi, (whole, attr, quote, target) => {
       const resolved = resolvePath(path, target);
       if (!resolved || projectFiles[resolved] === undefined) return whole;
       const content = projectFiles[resolved];
@@ -652,7 +650,7 @@ function rewriteAssets(html, path) {
     });
     return html;
   }
-  return html.replace(/\\b(src|href|poster)=("([^"]*)"|'([^']*)')/gi, (whole, attr, quoted, dquote, squote) => {
+  return html.replace(/\b(src|href|poster)=("([^"]*)"|'([^']*)')/gi, (whole, attr, quoted, dquote, squote) => {
     const target = dquote || squote || "", resolved = resolvePath(path,target);
     if (!resolved || projectFiles[resolved] === undefined) return whole;
     const content = projectFiles[resolved];
