@@ -639,7 +639,7 @@ function rewriteAssets(html, path) {
       const resolved = resolvePath(path, target);
       if (!resolved || projectFiles[resolved] === undefined || typeof projectFiles[resolved] !== "string") return whole;
       const attrs = (before + " " + after).replace(/\s+src\s*=\s*(["']).*?\1/i, "");
-      return "<script" + attrs + ">" + escapeScript(projectFiles[resolved]) + "<\\/script>";
+      return "<script" + attrs + ">" + escapeScript(projectFiles[resolved]) + "</script>";
     });
     html = html.replace(/\b(src|href|poster)=(["'])(.*?)\2/gi, (whole, attr, quote, target) => {
       const resolved = resolvePath(path, target);
