@@ -858,6 +858,10 @@ async function runRemoteProject() {
 }
 function run() {
   if (!editor) return;
+  // 新しいプレビュー要求が来たら、前のリモート実行のポーリング結果を無効化する。
+  // これをしないと、以前のプロジェクトの遅延レスポンスが新しいプレビューを上書きすることがある。
+  remotePollToken++;
+  stopRemoteRuntime();
   syncEditor();
   const code = projectFiles[activePath] || "", lang = language.value;
   clearConsole(); status.textContent = "Running…";
