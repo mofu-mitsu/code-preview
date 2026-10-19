@@ -407,7 +407,7 @@ document.getElementById("github-form").addEventListener("submit", async event =>
           continue;
         }
         const blob = await response.blob();
-        const actualBlobSha = await sha1(new Blob(["blob " + blob.size + "\0", blob]).arrayBuffer());
+        const actualBlobSha = await sha1(await new Blob(["blob " + blob.size + "\0", blob]).arrayBuffer());
         if (actualBlobSha === item.sha) verifiedCount++;
         else {
           mismatchCount++;
